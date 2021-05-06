@@ -119,9 +119,7 @@ class Config(object):
             self.play.search_threads = _json_config["play"]["search_threads"]
             self.play.simulation_num_per_move = _json_config["play"]["simulation_num_per_move"]
             self.play.tau_decay_rate = _json_config["play"]["tau_decay_rate"]
-            self.play.thinking_loop = _json_config["play"]["thinking_loop"]
             self.play.virtual_loss = _json_config["play"]["virtual_loss"]
-            self.play.vram_frac = _json_config["play"]["vram_frac"]
 
             # Config for training
             self.training = TrainingConfig()
