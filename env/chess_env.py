@@ -222,6 +222,7 @@ def all_input_planes(fen):
     pieces_both_player = to_planes(fen)
     ret = np.vstack((pieces_both_player, current_aux_planes))
     assert ret.shape == (18, 8, 8), "Wrong dimension for the input planes!"
+    return ret
 
 
 def canon_input_planes(fen):

@@ -67,15 +67,15 @@ class ChessModel(object):
         return x
 
     # Load the selected model weight
-    def load(self, config: Config, n: int):
-        path = Path(config.model_path) / f"model_{n:05}.h5"
+    def load(self, n: int):
+        path = Path(self.config.model_path) / f"model_{n:05}.h5"
         assert path.exists(), "Invalid model!"
         print(f"Loading weights from {path}")
         self.model.load_weights(str(path))
 
     # Load the latest model weight
-    def load_latest(self, config: Config):
-        path = Path(config.model_path)
+    def load_latest(self):
+        path = Path(self.config.model_path)
         if path.exists():
             weights_path = list(path.glob("model_*.h5"))
             if len(weights_path) != 0:
@@ -83,14 +83,15 @@ class ChessModel(object):
                 print(f"Loading weights from {latest_weight}")
                 self.model.load_weights(latest_weight)
             else:
-                print("No weight(s) found.")
+                print("No weight(s) found, creating a new model.")
+                self.save()
         else:
             print("New run detected.")
             path.mkdir()
 
     # Save the latest model weight
-    def save(self, config: Config):
-        path = Path(config.model_path)
+    def save(self):
+        path = Path(self.config.model_path)
         weights_path = list(path.glob("model_*.h5"))
         if len(weights_path) != 0:
             latest_weight = str(max(list(weights_path), key=lambda x: int(str(x).split("_")[1].split(".")[0])))

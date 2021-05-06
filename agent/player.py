@@ -89,7 +89,7 @@ class ChessPlayer(object):
         with self.node_lock[state]:
             if state not in self.tree:
                 leaf_p, leaf_v = self.expand_and_evaluate(env)
-                self.tree[state].p = 0
+                self.tree[state].p = leaf_p
                 return leaf_v
 
             # select step
@@ -128,9 +128,9 @@ class ChessPlayer(object):
 
     # Gets a prediction from the policy and value network
     def predict(self, state_planes):
-        data = np.asarray(state_planes, dtype=np.float32)
-        policy, value = self.agent.model.predict(data)
-        return policy, float(value)
+        data = np.asarray([state_planes], dtype=np.float32)
+        policy, value = self.agent.model.predict_on_batch(data)
+        return policy[0], float(value[0])
 
     # Picks the next action to explore using the AlphaZero MCTS algorithm
     # The action are based on the action which maximize the maximum action value
