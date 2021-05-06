@@ -12,6 +12,7 @@ class ChessModel(object):
         self.config = config
         self.model = self.build()
 
+    # Builds the full keras model
     def build(self):
         _mc = self.config.model
 
@@ -65,12 +66,14 @@ class ChessModel(object):
         x = Activation("relu", name=f"{res_name}_relu2")(x)
         return x
 
+    # Load the selected model weight
     def load(self, config: Config, n: int):
         path = Path(config.model_path) / f"model_{n:05}.h5"
         assert path.exists(), "Invalid model!"
         print(f"Loading weights from {path}")
         self.model.load_weights(str(path))
 
+    # Load the latest model weight
     def load_latest(self, config: Config):
         path = Path(config.model_path)
         if path.exists():
@@ -85,6 +88,7 @@ class ChessModel(object):
             print("New run detected.")
             path.mkdir()
 
+    # Save the latest model weight
     def save(self, config: Config):
         path = Path(config.model_path)
         weights_path = list(path.glob("model_*.h5"))

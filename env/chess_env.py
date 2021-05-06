@@ -19,6 +19,7 @@ class ChessEnv:
         self.is_resigned = False
         self.result = None
 
+    # Resets the environment to begin a new game
     def reset(self):
         self.board = chess.Board()
         self.num_halfmoves = 0
@@ -46,6 +47,7 @@ class ChessEnv:
     def white_to_move(self):
         return self.board.turn == chess.WHITE
 
+    # Takes an action and update the game state
     def step(self, action: str, check_over=True):
         # check if the action returned from the AI is NONE
         # meaning it don't have any moves
@@ -103,6 +105,7 @@ class ChessEnv:
     def observation(self):
         return self.board.fen()
 
+    # Returns a representation of the board using an (18, 8, 8) dimension array
     def canonical_input_planes(self):
         return canon_input_planes(self.board.fen())
 
