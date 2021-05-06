@@ -55,6 +55,23 @@ class ModelConfig(object):
         self.value_fc_size = 256
 
 
+class PlayConfig(object):
+    def __init__(self):
+        self.max_processes = 1
+        self.search_threads = 16
+        self.vram_frac = 1.0
+        self.simulation_num_per_move = 100
+        self.thinking_loop = 1
+        self.c_puct = 1.5
+        self.noise_eps = 0.25
+        self.dirichlet_alpha = 0.3
+        self.tau_decay_rate = 0.99
+        self.virtual_loss = 3
+        self.resign_threshold = -0.8
+        self.min_resign_turn = 5
+        self.max_game_length = 1000
+
+
 class Config(object):
     labels = create_uci_labels()
     n_labels = len(labels)
@@ -66,6 +83,8 @@ class Config(object):
             with open(path, 'r') as fp:
                 _json_config = json.load(fp)
             self.model_path = _json_config["model_path"]
+
+            # Config for the Chess AI Model
             self.model = ModelConfig()
             self.model.cnn_filter_num = _json_config["model"]["cnn_filter_num"]
             self.model.cnn_first_filter_size = _json_config["model"]["cnn_first_filter_size"]
@@ -74,9 +93,24 @@ class Config(object):
             self.model.l2_reg = _json_config["model"]["l2_reg"]
             self.model.res_layer_num = _json_config["model"]["res_layer_num"]
             self.model.value_fc_size = _json_config["model"]["value_fc_size"]
+
+            # Config for the Player
+            self.play.search_threads = _json_config["play"]["search_threads"]
+            self.play.vram_frac = _json_config["play"]["vram_frac"]
+            self.play.simulation_num_per_move = _json_config["play"]["simulation_num_per_move"]
+            self.play.thinking_loop = _json_config["play"]["thinking_loop"]
+            self.play.c_puct = _json_config["play"]["c_puct"]
+            self.play.noise_eps = _json_config["play"]["noise_eps"]
+            self.play.dirichlet_alpha = _json_config["play"]["dirichlet_alpha"]
+            self.play.tau_decay_rate = _json_config["play"]["tau_decay_rate"]
+            self.play.virtual_loss = _json_config["play"]["virtual_loss"]
+            self.play.resign_threshold = _json_config["play"]["resign_threshold"]
+            self.play.min_resign_turn = _json_config["play"]["min_resign_turn"]
+            self.play.max_game_length = _json_config["play"]["max_game_length"]
         else:
             self.model_path = ""
             self.model = ModelConfig()
+            self.play = PlayConfig()
 
     @staticmethod
     def flip_policy(policy):

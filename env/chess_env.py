@@ -1,7 +1,8 @@
 import copy
-import numpy as np
-import chess.pgn
 from enum import Enum
+
+import chess.pgn
+import numpy as np
 
 PIECES_ORDER = "KQRBNPkqrbnp"  # 12x8x8
 PIECES_ORDER_INDEX = {PIECES_ORDER[i]: i for i in range(len(PIECES_ORDER))}
@@ -13,14 +14,14 @@ Winner = Enum("Winner", "white black draw")
 class ChessEnv:
     def __init__(self):
         self.board = None
-        self.halfmoves_num = 0
+        self.num_halfmoves = 0
         self.winner = None
         self.is_resigned = False
         self.result = None
 
     def reset(self):
         self.board = chess.Board()
-        self.halfmoves_num = 0
+        self.num_halfmoves = 0
         self.winner = None
         self.is_resigned = False
         return self
@@ -52,7 +53,7 @@ class ChessEnv:
             self._resign()
 
         self.board.push_uci(action)
-        self.halfmoves_num += 1
+        self.num_halfmoves += 1
 
         if check_over and self.board.result(claim_draw=True) != '*':
             self._game_over()
