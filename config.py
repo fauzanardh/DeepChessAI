@@ -60,7 +60,7 @@ class PlayConfig(object):
         self.c_puct = 1.5
         self.dirichlet_alpha = 0.3
         self.max_game_length = 1000
-        self.max_total_game = 100
+        self.max_game_per_file = 32
         self.max_processes = 1
         self.min_resign_turn = 5
         self.noise_eps = 0.25
@@ -101,7 +101,7 @@ class Config(object):
             self.play.c_puct = _json_config["play"]["c_puct"]
             self.play.dirichlet_alpha = _json_config["play"]["dirichlet_alpha"]
             self.play.max_game_length = _json_config["play"]["max_game_length"]
-            self.play.max_total_game = _json_config["play"]["max_total_game"]
+            self.play.max_game_per_file = _json_config["play"]["max_game_per_file"]
             self.play.max_processes = _json_config["play"]["max_processes"]
             self.play.min_resign_turn = _json_config["play"]["min_resign_turn"]
             self.play.noise_eps = _json_config["play"]["noise_eps"]

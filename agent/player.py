@@ -6,7 +6,6 @@ import chess
 import numpy as np
 
 from config import Config
-from agent.model import ChessModel
 from env.chess_env import ChessEnv, Winner
 
 
@@ -35,15 +34,15 @@ class VisitStats(object):
 
 
 class ChessPlayer(object):
-    def __init__(self, config: Config, agent: ChessModel):
+    def __init__(self, config: Config, pipes=None):
         self.moves = []
         self.tree = defaultdict(VisitStats)
         self.config = config
         self.n_labels = self.config.n_labels
         self.labels = self.config.labels
         self.move_lookup = {chess.Move.from_uci(move): i for move, i in zip(self.labels, range(self.n_labels))}
+        self.pipe_pool = pipes
         self.node_lock = defaultdict(Lock)
-        self.agent = agent
 
     # Reset the tree to begin a exploration
     def reset(self):
@@ -128,9 +127,14 @@ class ChessPlayer(object):
 
     # Gets a prediction from the policy and value network
     def predict(self, state_planes):
-        data = np.asarray([state_planes], dtype=np.float32)
-        policy, value = self.agent.model.predict_on_batch(data)
-        return policy[0], float(value[0])
+        pipe = self.pipe_pool.pop()
+        pipe.send(state_planes)
+        policy, value = pipe.recv()
+        self.pipe_pool.append(pipe)
+        return policy, value
+        # data = np.asarray([state_planes], dtype=np.float32)
+        # policy, value = self.agent.model.predict_on_batch(data)
+        # return policy[0], float(value[0])
 
     # Picks the next action to explore using the AlphaZero MCTS algorithm
     # The action are based on the action which maximize the maximum action value

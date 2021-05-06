@@ -5,12 +5,22 @@ from tensorflow.keras.layers import Conv2D, Activation, Dense, Flatten, Add, Bat
 from tensorflow.keras.regularizers import l2
 
 from config import Config
+from agent.api import ChessModelAPI
 
 
 class ChessModel(object):
     def __init__(self, config: Config):
         self.config = config
         self.model = self.build()
+        self.api = None
+
+    # Creates a list of pipes on which
+    # the game state observation will be listened.
+    def get_pipes(self, num=1):
+        if self.api is None:
+            self.api = ChessModelAPI(self)
+            self.api.start()
+        return [self.api.create_pipe() for _ in range(num)]
 
     # Builds the full keras model
     def build(self):

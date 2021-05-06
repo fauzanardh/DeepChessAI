@@ -1,12 +1,23 @@
-import json
 import os
+import json
+import logging
+import concurrent.futures
+from collections import deque
+from concurrent.futures.process import ProcessPoolExecutor
 from datetime import datetime
-from time import time
+from multiprocessing import Manager
 
 from agent.model import ChessModel
 from agent.player import ChessPlayer
 from config import Config
 from env.chess_env import ChessEnv, Winner
+
+
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 def start(config: Config):
@@ -17,6 +28,10 @@ class SelfPlay(object):
     def __init__(self, config: Config):
         self.config = config
         self.agent = self.load_model()
+        self.manager = Manager()
+        self.cur_pipes = self.manager.list(
+            [self.agent.get_pipes(self.config.play.search_threads) for _ in range(self.config.play.max_processes)]
+        )
         self.buffer = []
 
     def load_model(self):
@@ -27,37 +42,25 @@ class SelfPlay(object):
 
     def start(self):
         self.buffer = []
-        # futures = deque()
-        # with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
-        #     for game_idx in range(self.config.play.max_processes * 2):
-        #         futures.append(executor.submit(self_play_buffer, self.config, self.agent))
-        #     game_idx = 0
-        #     while game_idx < self.config.play.max_total_game:
-        #         game_idx += 1
-        #         start_time = time()
-        #         env, data = futures.popleft().result()
-        #         print(
-        #             f"game {game_idx:05} time={time() - start_time:5.1f}s "
-        #             f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
-        #             f"{'by resign' if env.resigned else ''}"
-        #         )
-        #         self.buffer += data
+        futures = deque()
+        with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
+            for _ in range(self.config.play.max_processes * 2):
+                futures.append(executor.submit(self_play_buffer, self.config, self.cur_pipes))
 
-        game_idx = 0
-        while game_idx < self.config.play.max_total_game:
-            game_idx += 1
-            start_time = time()
-            env, data = self_play_buffer(self.config, self.agent)
-            print(env.board.fen())
-            print(
-                f"game {game_idx:05} time={time() - start_time:5.1f}s "
-                f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
-                f"{'by resign' if env.is_resigned else ''}"
-            )
-            self.buffer += data
-
-        if len(self.buffer) > 0:
-            self.flush_buffer()
+            game_idx = 0
+            while True:
+                game_idx += 1
+                env, data = futures.popleft().result()
+                logging.info(
+                    f"game {game_idx:05} "
+                    f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
+                    f"{'by resign' if env.is_resigned else ''} "
+                    f"| fen={env.board.fen()}"
+                )
+                self.buffer += data
+                if game_idx % self.config.play.max_game_per_file == 0:
+                    self.flush_buffer()
+                futures.append(executor.submit(self_play_buffer, self.config, self.cur_pipes))
 
     def flush_buffer(self):
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
@@ -67,11 +70,12 @@ class SelfPlay(object):
         self.buffer = []
 
 
-def self_play_buffer(config: Config, agent: ChessModel):
+def self_play_buffer(config: Config, pipes):
     env = ChessEnv().reset()
+    cur_pipe = pipes.pop()
 
-    white = ChessPlayer(config, agent)
-    black = ChessPlayer(config, agent)
+    white = ChessPlayer(config, pipes=cur_pipe)
+    black = ChessPlayer(config, pipes=cur_pipe)
 
     while not env.done:
         if env.white_to_move:
@@ -98,4 +102,5 @@ def self_play_buffer(config: Config, agent: ChessModel):
         if i < len(black.moves):
             data.append(black.moves[i])
 
+    pipes.append(cur_pipe)
     return env, data
