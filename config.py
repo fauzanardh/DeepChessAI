@@ -68,9 +68,19 @@ class PlayConfig(object):
         self.search_threads = 16
         self.simulation_num_per_move = 100
         self.tau_decay_rate = 0.99
-        self.thinking_loop = 1
         self.virtual_loss = 3
-        self.vram_frac = 1.0
+
+
+class TrainingConfig(object):
+    def __init__(self):
+        self.max_processes = 1
+        self.batch_size = 128
+        self.epoch_to_checkpoint = 1
+        self.dataset_size = 100000
+        self.start_total_steps = 0
+        self.save_model_steps = 25
+        self.load_data_steps = 100
+        self.loss_weight = [1.25, 1.0]
 
 
 class Config(object):
@@ -112,11 +122,23 @@ class Config(object):
             self.play.thinking_loop = _json_config["play"]["thinking_loop"]
             self.play.virtual_loss = _json_config["play"]["virtual_loss"]
             self.play.vram_frac = _json_config["play"]["vram_frac"]
+
+            # Config for training
+            self.training = TrainingConfig()
+            self.training.max_processes = _json_config["training"]["max_processes"]
+            self.training.batch_size = _json_config["training"]["batch_size"]
+            self.training.epoch_to_checkpoint = _json_config["training"]["epoch_to_checkpoint"]
+            self.training.dataset_size = _json_config["training"]["dataset_size"]
+            self.training.start_total_steps = _json_config["training"]["start_total_steps"]
+            self.training.save_model_steps = _json_config["training"]["save_model_steps"]
+            self.training.load_data_steps = _json_config["training"]["load_data_steps"]
+            self.training.loss_weight = _json_config["training"]["loss_weight"]
         else:
             self.model_path = ""
             self.play_path = ""
             self.model = ModelConfig()
             self.play = PlayConfig()
+            self.training = TrainingConfig()
 
     @staticmethod
     def flip_policy(policy):

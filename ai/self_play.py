@@ -1,23 +1,15 @@
 import os
-import json
-import logging
-import concurrent.futures
+from threading import Thread
 from collections import deque
 from concurrent.futures.process import ProcessPoolExecutor
 from datetime import datetime
 from multiprocessing import Manager
 
+from config import Config
 from agent.model import ChessModel
 from agent.player import ChessPlayer
-from config import Config
 from env.chess_env import ChessEnv, Winner
-
-
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+from util.data_helper import write_data
 
 
 def start(config: Config):
@@ -51,7 +43,7 @@ class SelfPlay(object):
             while True:
                 game_idx += 1
                 env, data = futures.popleft().result()
-                logging.info(
+                print(
                     f"game {game_idx:05} "
                     f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
                     f"{'by resign' if env.is_resigned else ''} "
@@ -65,8 +57,8 @@ class SelfPlay(object):
     def flush_buffer(self):
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(self.config.play_path, f"play_{game_id}.json")
-        with open(path, "w+") as fp:
-            json.dump(self.buffer, fp)
+        thread = Thread(target=write_data, args=(path, self.buffer))
+        thread.start()
         self.buffer = []
 
 

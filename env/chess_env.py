@@ -112,24 +112,28 @@ class ChessEnv:
     # try to evaluate the current board value
     # based on the pieces on the board
     def _evaluate(self, absolute=False):
-        pieces_val = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1}
-        ans = 0.0
-        total = 0
-        for c in self.board.fen().split(' ')[0]:
-            if not c.isalpha():
-                continue
+        return evaluate(self.board.fen(), absolute)
 
-            if c.isupper():
-                ans += pieces_val[c]
-                total += pieces_val[c]
-            else:
-                ans -= pieces_val[c.upper()]
-                total += pieces_val[c.upper()]
-        v = ans/total
-        if not absolute and not is_white_turn(self.board.fen()):
-            v = -v
-        assert abs(v) < 1, "Something went wrong when calculating the pieces value"
-        return np.tanh(v * 3)
+
+def evaluate(fen, absolute=False):
+    pieces_val = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1}
+    ans = 0.0
+    total = 0
+    for c in fen.split(' ')[0]:
+        if not c.isalpha():
+            continue
+
+        if c.isupper():
+            ans += pieces_val[c]
+            total += pieces_val[c]
+        else:
+            ans -= pieces_val[c.upper()]
+            total += pieces_val[c.upper()]
+    v = ans / total
+    if not absolute and not is_white_turn(fen):
+        v = -v
+    assert abs(v) < 1, "Something went wrong when calculating the pieces value"
+    return np.tanh(v * 3)
 
 
 def flip_fen(fen):
@@ -233,4 +237,3 @@ def canon_input_planes(fen):
 
 def is_white_turn(fen):
     return fen.split(' ')[1] == 'w'
-
