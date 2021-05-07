@@ -3,9 +3,10 @@ from pathlib import Path
 from tensorflow.keras import Input, Model
 from tensorflow.keras.layers import Conv2D, Activation, Dense, Flatten, Add, BatchNormalization
 from tensorflow.keras.regularizers import l2
+from tensorflow.keras.backend import clear_session
 
-from config import Config
 from agent.api import ChessModelAPI
+from config import Config
 
 
 class ChessModel(object):
@@ -13,6 +14,14 @@ class ChessModel(object):
         self.config = config
         self.model = self.build()
         self.api = None
+
+    def reset(self):
+        if self.api is not None:
+            for pipe in self.api.pipes:
+                pipe.close()
+            del self.api
+            self.api = None
+        clear_session()
 
     # Creates a list of pipes on which
     # the game state observation will be listened.
@@ -76,8 +85,20 @@ class ChessModel(object):
         x = Activation("relu", name=f"{res_name}_relu2")(x)
         return x
 
+    # Get all the saved weights and sort it
+    def get_weights_path(self):
+        path = Path(self.config.model_path)
+        weights_path = list(sorted(path.glob("model_*.h5")))
+        return weights_path
+
+    # Load the model weight from path given
+    def load_path(self, path: Path):
+        assert path.exists(), "Invalid model!"
+        print(f"Loading weights from {path}")
+        self.model.load_weights(str(path))
+
     # Load the selected model weight
-    def load(self, n: int):
+    def load_n(self, n: int):
         path = Path(self.config.model_path) / f"model_{n:05}.h5"
         assert path.exists(), "Invalid model!"
         print(f"Loading weights from {path}")

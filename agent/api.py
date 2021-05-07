@@ -21,14 +21,22 @@ class ChessModelAPI(object):
 
     def _predict_batch_worker(self):
         while True:
-            ready = connection.wait(self.pipes, timeout=0.1)
+            try:
+                ready = connection.wait(self.pipes, timeout=0.1)
+            except OSError:
+                break
             if not ready:
                 continue
             data, result_pipes = [], []
             for pipe in ready:
                 while pipe.poll():
-                    data.append(pipe.recv())
-                    result_pipes.append(pipe)
+                    try:
+                        _data = pipe.recv()
+                        data.append(_data)
+                        result_pipes.append(pipe)
+                    except BrokenPipeError:
+                        print("Pipe closed!")
+                        return
 
             data = np.asarray(data, dtype=np.float32)
             policy_arr, value_arr = self.agent.model.predict_on_batch(data)

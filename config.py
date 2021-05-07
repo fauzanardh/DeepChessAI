@@ -83,6 +83,18 @@ class TrainingConfig(object):
         self.loss_weight = [1.25, 1.0]
 
 
+class EvaluateConfig(object):
+    def __init__(self):
+        self.c_puct = 1
+        self.game_num = 50
+        self.max_processes = 1
+        self.noise_eps = 0
+        self.replace_rate = 0.55
+        self.search_threads = 16
+        self.simulation_num_per_move = 200
+        self.tau_decay_rate = 0.6
+
+
 class Config(object):
     labels = create_uci_labels()
     n_labels = len(labels)
@@ -131,12 +143,24 @@ class Config(object):
             self.training.save_model_steps = _json_config["training"]["save_model_steps"]
             self.training.load_data_steps = _json_config["training"]["load_data_steps"]
             self.training.loss_weight = _json_config["training"]["loss_weight"]
+
+            # Config for evaluator
+            self.evaluate = EvaluateConfig()
+            self.evaluate.c_puct = _json_config["evaluate"]["c_puct"]
+            self.evaluate.game_num = _json_config["evaluate"]["game_num"]
+            self.evaluate.max_processes = _json_config["evaluate"]["max_processes"]
+            self.evaluate.noise_eps = _json_config["evaluate"]["noise_eps"]
+            self.evaluate.replace_rate = _json_config["evaluate"]["replace_rate"]
+            self.evaluate.search_threads = _json_config["evaluate"]["search_threads"]
+            self.evaluate.simulation_num_per_move = _json_config["evaluate"]["simulation_num_per_move"]
+            self.evaluate.tau_decay_rate = _json_config["evaluate"]["tau_decay_rate"]
         else:
             self.model_path = ""
             self.play_path = ""
             self.model = ModelConfig()
             self.play = PlayConfig()
             self.training = TrainingConfig()
+            self.evaluate = EvaluateConfig()
 
     @staticmethod
     def flip_policy(policy):

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from threading import Thread
 from collections import deque
 from concurrent.futures.process import ProcessPoolExecutor
@@ -57,6 +58,7 @@ class SelfPlay(object):
     def flush_buffer(self):
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(self.config.play_path, f"play_{game_id}.json")
+        Path(self.config.play_path).mkdir(exist_ok=True)
         thread = Thread(target=write_data, args=(path, self.buffer))
         thread.start()
         self.buffer = []
@@ -74,7 +76,11 @@ def self_play_buffer(config: Config, pipes):
             action = white.action(env)
         else:
             action = black.action(env)
-        env.step(action)
+        try:
+            env.step(action)
+        except Exception as e:
+            env.adjudicate()
+
         if env.num_halfmoves >= config.play.max_game_length:
             env.adjudicate()
 
