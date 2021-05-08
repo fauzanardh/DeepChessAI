@@ -58,15 +58,15 @@ class Optimizer(object):
     def train_epoch(self, epochs):
         ct = self.config.training
         state_arr, policy_arr, value_arr = self.collect_loaded_data()
-        # tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
-        # es_callback = EarlyStopping(monitor="val_loss", patience=3)
+        tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
+        es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
             state_arr, [policy_arr, value_arr],
             batch_size=ct.batch_size,
             epochs=epochs,
             shuffle=True,
             validation_split=0.2,
-            # callbacks=[tb_callback, es_callback]
+            callbacks=[tb_callback, es_callback]
         )
         steps = (state_arr.shape[0] // ct.batch_size) * epochs
         return steps

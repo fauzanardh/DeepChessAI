@@ -113,14 +113,14 @@ class SelfPlay(object):
     def train_epoch(self, epochs):
         ct = self.config.training
         state_arr, policy_arr, value_arr = self.collect_loaded_data()
-        # es_callback = EarlyStopping(monitor="val_loss", patience=3)
+        es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
             state_arr, [policy_arr, value_arr],
             batch_size=ct.batch_size,
             epochs=epochs,
             shuffle=True,
             validation_split=0.2,
-            # callbacks=[es_callback]
+            callbacks=[es_callback]
         )
         steps = (state_arr.shape[0] // ct.batch_size) * epochs
         return steps
