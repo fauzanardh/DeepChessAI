@@ -1,5 +1,7 @@
 .idea/
 venv/
 models/
+plays/
 logs/
+pgn/
 *.json

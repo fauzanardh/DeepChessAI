@@ -1,3 +1,5 @@
+import shutil
+from pathlib import Path
 from random import shuffle
 from collections import deque
 from concurrent.futures import ProcessPoolExecutor
@@ -10,6 +12,7 @@ from util.data_helper import load_data, get_game_data_filenames
 
 import numpy as np
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import EarlyStopping
 
@@ -55,15 +58,15 @@ class Optimizer(object):
     def train_epoch(self, epochs):
         ct = self.config.training
         state_arr, policy_arr, value_arr = self.collect_loaded_data()
-        tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
-        es_callback = EarlyStopping(monitor="val_loss", patience=6)
+        # tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
+        # es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
             state_arr, [policy_arr, value_arr],
             batch_size=ct.batch_size,
             epochs=epochs,
             shuffle=True,
             validation_split=0.2,
-            callbacks=[tb_callback, es_callback]
+            # callbacks=[tb_callback, es_callback]
         )
         steps = (state_arr.shape[0] // ct.batch_size) * epochs
         return steps
@@ -80,25 +83,33 @@ class Optimizer(object):
             for _ in range(self.config.training.max_processes):
                 if len(self.filenames) == 0:
                     break
-                filename = str(self.filenames.popleft())
+                filename = self.filenames.popleft()
                 print(f"Loading data from {filename}")
-                futures.append(executor.submit(load_game_data, filename))
+                futures.append(executor.submit(load_game_data, self.config.play_path, filename))
             while futures and len(self.dataset[0]) < self.config.training.dataset_size:
                 for x, y in zip(self.dataset, futures.popleft().result()):
                     x.extend(y)
                 if len(self.filenames) > 0:
                     filename = self.filenames.popleft()
                     print(f"Loading data from {filename}")
-                    futures.append(executor.submit(load_game_data, filename))
+                    futures.append(executor.submit(load_game_data, self.config.play_path, filename))
 
     def compile_model(self):
-        opt = Adam()
+        lr_schedule = ExponentialDecay(
+            initial_learning_rate=1e-4,
+            decay_steps=10000,
+            decay_rate=0.9
+        )
+        opt = Adam(learning_rate=lr_schedule)
         losses = ["categorical_crossentropy", "mean_squared_error"]
         self.agent.model.compile(optimizer=opt, loss=losses, loss_weights=self.config.training.loss_weight)
 
 
-def load_game_data(filename):
+def load_game_data(play_path, filename: Path):
     data = load_data(filename)
+    move_path = Path(play_path) / "done"
+    move_path.mkdir(exist_ok=True)
+    shutil.move(Path(play_path) / filename.name, move_path)
     return convert_data(data)
 
 

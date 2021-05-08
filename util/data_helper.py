@@ -9,10 +9,15 @@ def get_game_data_filenames(config: Config):
     return list(sorted(path.glob("*.json")))
 
 
+def get_pgn_filenames(config: Config):
+    path = Path(config.pgn_path)
+    return list(sorted(path.glob("*.pgn")))
+
+
 def write_data(path, data):
     try:
         with open(path, "w+") as fp:
-            json.dump(data, fp)
+            fp.write(json.dumps(data))
     except Exception as e:
         print(e)
 

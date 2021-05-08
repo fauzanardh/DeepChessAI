@@ -11,6 +11,7 @@ from threading import Thread
 import numpy as np
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 from agent.model import ChessModel
 from agent.player import ChessPlayer
@@ -71,6 +72,7 @@ class SelfPlay(object):
                     f"{'by resign' if env.is_resigned else ''} "
                     f"| fen={env.board.fen()}"
                 )
+                self.buffer += data
             # game_idx = 0
             # while True:
             #     game_idx += 1
@@ -111,14 +113,14 @@ class SelfPlay(object):
     def train_epoch(self, epochs):
         ct = self.config.training
         state_arr, policy_arr, value_arr = self.collect_loaded_data()
-        es_callback = EarlyStopping(monitor="val_loss", patience=6)
+        # es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
             state_arr, [policy_arr, value_arr],
             batch_size=ct.batch_size,
             epochs=epochs,
             shuffle=True,
             validation_split=0.2,
-            callbacks=[es_callback]
+            # callbacks=[es_callback]
         )
         steps = (state_arr.shape[0] // ct.batch_size) * epochs
         return steps
@@ -147,7 +149,12 @@ class SelfPlay(object):
                     futures.append(executor.submit(load_game_data, filename))
 
     def compile_model(self):
-        opt = Adam()
+        lr_schedule = ExponentialDecay(
+            initial_learning_rate=1e-4,
+            decay_steps=10000,
+            decay_rate=0.9
+        )
+        opt = Adam(learning_rate=lr_schedule)
         losses = ["categorical_crossentropy", "mean_squared_error"]
         self.agent.model.compile(optimizer=opt, loss=losses, loss_weights=self.config.training.loss_weight)
 

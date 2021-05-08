@@ -71,6 +71,13 @@ class PlayConfig(object):
         self.virtual_loss = 3
 
 
+class SupervisedLearning(object):
+    def __init__(self):
+        self.max_processes = 4
+        self.min_elo_policy = 1200
+        self.max_elo_policy = 2800
+
+
 class TrainingConfig(object):
     def __init__(self):
         self.max_processes = 1
@@ -107,6 +114,7 @@ class Config(object):
                 _json_config = json.load(fp)
             self.model_path = _json_config["model_path"]
             self.play_path = _json_config["play_path"]
+            self.pgn_path = _json_config["pgn_path"]
 
             # Config for the Chess AI Model
             self.model = ModelConfig()
@@ -133,6 +141,12 @@ class Config(object):
             self.play.tau_decay_rate = _json_config["play"]["tau_decay_rate"]
             self.play.virtual_loss = _json_config["play"]["virtual_loss"]
 
+            # Config for supervised learning
+            self.supervised_learning = SupervisedLearning()
+            self.supervised_learning.max_processes = _json_config["supervised_learning"]["max_processes"]
+            self.supervised_learning.min_elo_policy = _json_config["supervised_learning"]["min_elo_policy"]
+            self.supervised_learning.max_elo_policy = _json_config["supervised_learning"]["max_elo_policy"]
+
             # Config for training
             self.training = TrainingConfig()
             self.training.max_processes = _json_config["training"]["max_processes"]
@@ -157,8 +171,10 @@ class Config(object):
         else:
             self.model_path = ""
             self.play_path = ""
+            self.pgn_path = ""
             self.model = ModelConfig()
             self.play = PlayConfig()
+            self.supervised_learning = SupervisedLearning()
             self.training = TrainingConfig()
             self.evaluate = EvaluateConfig()
 
@@ -168,7 +184,7 @@ class Config(object):
 
     def save_config(self, path: str):
         with open(path, "w+") as fp:
-            json.dump(self, fp, default=lambda o: o.__dict__, indent=4)
+            fp.write(json.dumps(self, default=lambda o: o.__dict__, indent=4))
 
 
 Config.unflipped_index = [Config.labels.index(x) for x in Config.flipped_labels]

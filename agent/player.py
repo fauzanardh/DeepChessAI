@@ -34,13 +34,15 @@ class VisitStats(object):
 
 
 class ChessPlayer(object):
-    def __init__(self, config: Config, pipes=None):
+    def __init__(self, config: Config, pipes=None, dummy=False):
         self.moves = []
         self.tree = defaultdict(VisitStats)
         self.config = config
         self.n_labels = self.config.n_labels
         self.labels = self.config.labels
         self.move_lookup = {chess.Move.from_uci(move): i for move, i in zip(self.labels, range(self.n_labels))}
+        if dummy:
+            return
         self.pipe_pool = pipes
         self.node_lock = defaultdict(Lock)
 
@@ -64,6 +66,13 @@ class ChessPlayer(object):
         else:
             self.moves.append([env.observation, list(policy)])
             return self.config.labels[cur_action]
+
+    def sl_action(self, observation, action, weight=1):
+        policy = np.zeros(self.n_labels)
+        k = self.move_lookup[chess.Move.from_uci(action)]
+        policy[k] = weight
+        self.moves.append([observation, list(policy)])
+        return action
 
     # Looks at all the possible moves using the AlphaZero MCTS algorithm
     # find the highest move value possible
