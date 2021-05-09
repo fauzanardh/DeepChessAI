@@ -9,6 +9,7 @@ from agent.model import ChessModel
 from config import Config
 from env.chess_env import canon_input_planes, is_white_turn, evaluate
 from util.data_helper import load_data, get_game_data_filenames
+from util.dataset_wrapper import DatasetWrapper
 
 import numpy as np
 from tensorflow.keras.optimizers import Adam
@@ -43,11 +44,12 @@ class Optimizer(object):
         self.compile_model()
         self.filenames = deque(get_game_data_filenames(self.config))
         shuffle(self.filenames)
-        total_steps = self.config.training.start_total_steps
+        # total_steps = self.config.training.start_total_steps
 
-        self.fill_queue()
-        steps = self.train_epoch(self.config.training.epoch_to_checkpoint)
-        total_steps += steps
+        # self.fill_queue()
+        # steps = self.train_epoch(self.config.training.epoch_to_checkpoint)
+        self.train_epoch()
+        # total_steps += steps
         self.agent.save()
         state_arr, policy_arr, value_arr = self.dataset
         while len(state_arr) > self.config.training.dataset_size // 2:
@@ -55,21 +57,34 @@ class Optimizer(object):
             policy_arr.popleft()
             value_arr.popleft()
 
-    def train_epoch(self, epochs):
+    def train_epoch(self):
         ct = self.config.training
-        state_arr, policy_arr, value_arr = self.collect_loaded_data()
+        epoch_size = 1184
+        train_size = int(0.7 * epoch_size)
+        val_size = int(0.3 * epoch_size)
+        dataset_wrapper = DatasetWrapper("tfrecords/twic.tfrecords")
+        # state_arr, policy_arr, value_arr = self.collect_loaded_data()
         tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
-        es_callback = EarlyStopping(monitor="val_loss", patience=3)
+        # es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
-            state_arr, [policy_arr, value_arr],
-            batch_size=ct.batch_size,
-            epochs=epochs,
-            shuffle=True,
-            validation_split=0.2,
-            callbacks=[tb_callback, es_callback]
+            dataset_wrapper.get_dataset(ct.batch_size, is_training=True),
+            epochs=ct.epoch_to_checkpoint,
+            steps_per_epoch=train_size // ct.batch_size,
+            validation_data=dataset_wrapper.get_dataset(ct.batch_size),
+            validation_steps=val_size // ct.batch_size,
+            # callbacks=[tb_callback, es_callback]
+            callbacks=[tb_callback]
         )
-        steps = (state_arr.shape[0] // ct.batch_size) * epochs
-        return steps
+        # self.agent.model.fit(
+        #     state_arr, [policy_arr, value_arr],
+        #     batch_size=ct.batch_size,
+        #     epochs=epochs,
+        #     shuffle=True,
+        #     validation_split=0.2,
+        #     callbacks=[tb_callback, es_callback]
+        # )
+        # steps = (state_arr.shape[0] // ct.batch_size) * epochs
+        # return steps
 
     def collect_loaded_data(self):
         state_arr, policy_arr, value_arr = self.dataset
