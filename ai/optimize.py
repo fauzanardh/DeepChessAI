@@ -62,7 +62,7 @@ class Optimizer(object):
         epoch_size = ct.epoch_size
         train_size = int(0.9 * epoch_size)
         val_size = int(0.1 * epoch_size)
-        dataset_wrapper = DatasetWrapper("tfrecords/twic.tfrecords")
+        dataset_wrapper = DatasetWrapper(self.config.tfr_path)
         state_arr, policy_arr, value_arr = self.collect_loaded_data()
         tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
         # es_callback = EarlyStopping(monitor="val_loss", patience=3)
