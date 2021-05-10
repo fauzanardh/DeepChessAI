@@ -1,4 +1,5 @@
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import tensorflow as tf
 import numpy as np
@@ -34,6 +35,7 @@ class TFRecordExporter(object):
         self.game_idx += 1
         env, data = get_buffer(self.config, game)
         print(
+            f"{self.dataset_name} "
             f"game {self.game_idx:05} "
             f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
             f"{'by resign' if env.is_resigned else ''} "
@@ -153,18 +155,35 @@ def convert_data(data):
            np.asarray(value_list, dtype=np.float32)
 
 
+def add_to_tfr(file, config: Config):
+    dataset_name = str(file.name).split('.')[0]
+    exporter = TFRecordExporter(dataset_name, config)
+    games = get_games_from_pgn(file)
+    for game in games:
+        exporter.add_data(game)
+    exporter.close()
+    return exporter.game_idx
+
+
 if __name__ == "__main__":
     _config = Config("config-default.json")
     files = get_pgn_filenames(_config)
-    try:
-        for file in files:
-            _dataset_name = str(file.name).split('.')[0]
-            exporter = TFRecordExporter(_dataset_name, _config)
-            _games = get_games_from_pgn(file)
-            for _game in _games:
-                exporter.add_data(_game)
-    except KeyboardInterrupt:
-        print("Exiting...")
-    print(f"Added {exporter.game_idx} games!")
-    exporter.close()
-
+    total_games = 0
+    with ProcessPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(add_to_tfr, file, _config) for file in files]
+        try:
+            for future in as_completed(futures):
+                total_games += future.result()
+        except KeyboardInterrupt:
+            print("Trying to cancel the futures.")
+            for future in futures:
+                future.cancel()
+    # for _file in files:
+    #     _dataset_name = str(file.name).split('.')[0]
+    #     _exporter = TFRecordExporter(_dataset_name, _config)
+    #     _games = get_games_from_pgn(file)
+    #     for _game in _games:
+    #         exporter.add_data(_game)
+    #     total_games += exporter.game_idx
+    #     exporter.close()
+    print(f"Added {total_games} games!")
