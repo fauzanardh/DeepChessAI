@@ -1,8 +1,6 @@
 import os
-import re
 from datetime import datetime
 from pathlib import Path
-from threading import Thread
 
 import chess.pgn
 
@@ -10,8 +8,6 @@ from agent.player import ChessPlayer
 from config import Config
 from env.chess_env import ChessEnv, Winner
 from util.data_helper import get_pgn_filenames, write_data
-
-TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
@@ -22,60 +18,26 @@ class SupervisedLearning(object):
     def __init__(self, config: Config):
         self.config = config
         self.buffer = []
-        self.games = []
+        # self.games = []
         self.game_idx = 0
 
     def start(self):
-        self.get_pgn_files()
-        for game in self.games:
-            self.game_idx += 1
-            env, wm, bm = get_buffer(self.config, game)
-            data = []
-            for i in range(len(wm)):
-                data.append(wm[i])
-                if i < len(bm):
-                    data.append(bm[i])
-            del wm, bm
-            self.buffer.extend(data)
-            del data
-            print(
-                f"game {self.game_idx:05} "
-                f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
-                f"{'by resign' if env.is_resigned else ''} "
-                f"| {env.observation}"
-            )
-            if self.game_idx % self.config.play.max_game_per_file == 0:
-                self.flush_buffer()
-        # with ProcessPoolExecutor(max_workers=self.config.supervised_learning.max_processes) as executor:
-        #     futures = [executor.submit(get_buffer, self.config, game) for game in games]
-        #     for future in as_completed(futures):
-        #         self.game_idx += 1
-        #         env, wm, bm = future.result()
-        #         data = []
-        #         for i in range(len(wm)):
-        #             data.append(wm[i])
-        #             if i < len(bm):
-        #                 data.append(bm[i])
-        #         del wm, bm
-        #         self.buffer.extend(data)
-        #         del data
-        #         print(
-        #             f"game {self.game_idx:05} "
-        #             f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
-        #             f"{'by resign' if env.is_resigned else ''} "
-        #             f"| {env.observation}"
-        #         )
-        #         if self.game_idx % self.config.play.max_game_per_file == 0:
-        #             self.flush_buffer()
+        # self.get_pgn_files()
+        for games in get_games(get_pgn_filenames(self.config)):
+            for game in games:
+                self.game_idx += 1
+                env, data = get_buffer(self.config, game)
+                self.buffer.extend(data)
+                print(
+                    f"game {self.game_idx:05} "
+                    f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
+                    f"{'by resign' if env.is_resigned else ''} "
+                    f"| {env.observation}"
+                )
+                if self.game_idx % self.config.play.max_game_per_file == 0:
+                    self.flush_buffer()
         if len(self.buffer) > 0:
             self.flush_buffer()
-
-    def get_pgn_files(self):
-        files = get_pgn_filenames(self.config)
-        for file in files:
-            self.games.extend(get_games_from_pgn(file))
-            print(f"Current total games: {len(self.games)}")
-
 
     def flush_buffer(self):
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
@@ -84,8 +46,6 @@ class SupervisedLearning(object):
         buffer = self.buffer.copy()
         self.buffer = []
         write_data(path, buffer)
-        # thread = Thread(target=write_data, args=(path, buffer))
-        # thread.start()
 
 
 def clip_elo_policy(config, elo):
@@ -136,12 +96,17 @@ def get_buffer(config: Config, game):
     white.finish_game(white_win)
     black.finish_game(-white_win)
 
-    # data = []
-    # for i in range(len(white.moves)):
-    #     data.append(white.moves[i])
-    #     if i < len(black.moves):
-    #         data.append(black.moves[i])
-    return env, white.moves, black.moves
+    data = []
+    for i in range(len(white.moves)):
+        data.append(white.moves[i])
+        if i < len(black.moves):
+            data.append(black.moves[i])
+    return env, data
+
+
+def get_games(files):
+    for file in files:
+        yield get_games_from_pgn(file)
 
 
 def get_games_from_pgn(filename):

@@ -1,1 +1,1 @@
-# Chess AI using Reinforcement Learning (WIP)
+# Chess AI (WIP)
