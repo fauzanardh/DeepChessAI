@@ -59,21 +59,21 @@ class Optimizer(object):
 
     def train_epoch(self):
         ct = self.config.training
-        epoch_size = 1184
-        train_size = int(0.7 * epoch_size)
-        val_size = int(0.3 * epoch_size)
+        epoch_size = ct.epoch_size
+        train_size = int(0.9 * epoch_size)
+        val_size = int(0.1 * epoch_size)
         dataset_wrapper = DatasetWrapper("tfrecords/twic.tfrecords")
-        # state_arr, policy_arr, value_arr = self.collect_loaded_data()
+        state_arr, policy_arr, value_arr = self.collect_loaded_data()
         tb_callback = TensorBoard(log_dir="logs/", histogram_freq=1)
         # es_callback = EarlyStopping(monitor="val_loss", patience=3)
         self.agent.model.fit(
-            dataset_wrapper.get_dataset(ct.batch_size, is_training=True),
+            dataset_wrapper.get_dataset(ct.batch_size, train_size, is_training=True),
             epochs=ct.epoch_to_checkpoint,
             steps_per_epoch=train_size // ct.batch_size,
-            validation_data=dataset_wrapper.get_dataset(ct.batch_size),
+            validation_data=dataset_wrapper.get_dataset(ct.batch_size, train_size),
             validation_steps=val_size // ct.batch_size,
             # callbacks=[tb_callback, es_callback]
-            callbacks=[tb_callback]
+            # callbacks=[tb_callback]
         )
         # self.agent.model.fit(
         #     state_arr, [policy_arr, value_arr],
