@@ -16,10 +16,10 @@ def _float_feature(value):
 
 
 class TFRecordExporter(object):
-    def __init__(self, dataset_name, tfr_dir, config: Config):
+    def __init__(self, dataset_name, config: Config):
         self.config = config
         self.dataset_name = dataset_name
-        self.tfr_dir = Path(tfr_dir)
+        self.tfr_dir = Path(self.config.tfr_path)
         tfr_opt = tf.io.TFRecordOptions(
             compression_type="GZIP"
         )
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     try:
         for file in files:
             _dataset_name = str(file.name).split('.')[0]
-            exporter = TFRecordExporter(_dataset_name, "tfrecords/", _config)
+            exporter = TFRecordExporter(_dataset_name, _config)
             _games = get_games_from_pgn(file)
             for _game in _games:
                 exporter.add_data(_game)

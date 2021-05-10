@@ -93,10 +93,13 @@ def play_game(config: Config, cur, new, cur_white: bool):
 
     cur_player = ChessPlayer(config, pipes=cur_pipe)
     new_player = ChessPlayer(config, pipes=new_pipe)
+    print(f"cur_white={cur_white}")
     if cur_white:
         white, black = cur_player, new_player
+        print("Playing as black")
     else:
         white, black = new_player, cur_player
+        print("Playing as white")
 
     while not env.done:
         if env.white_to_move:
@@ -105,6 +108,9 @@ def play_game(config: Config, cur, new, cur_white: bool):
             action = black.action(env)
         try:
             env.step(action)
+            # print('=' * 20)
+            # print(env.board)
+            # print('=' * 20)
         except Exception as e:
             print(e)
             env.adjudicate()

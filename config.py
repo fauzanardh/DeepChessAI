@@ -116,6 +116,7 @@ class Config(object):
             self.model_path = _json_config["model_path"]
             self.play_path = _json_config["play_path"]
             self.pgn_path = _json_config["pgn_path"]
+            self.tfr_path = _json_config["tfr_path"]
 
             # Config for the Chess AI Model
             self.model = ModelConfig()
@@ -174,6 +175,7 @@ class Config(object):
             self.model_path = ""
             self.play_path = ""
             self.pgn_path = ""
+            self.tfr_path = ""
             self.model = ModelConfig()
             self.play = PlayConfig()
             self.supervised_learning = SupervisedLearning()
