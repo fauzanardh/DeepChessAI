@@ -21,7 +21,7 @@ class TFRecordExporter(object):
         self.dataset_name = dataset_name
         self.tfr_dir = Path(tfr_dir)
         tfr_opt = tf.io.TFRecordOptions(
-            ""
+            tf.python.python_io.TFRecordCompressionType.GZIP
         )
         tfr_file = self.tfr_dir / f"{dataset_name}.tfrecords"
         self.tfr_writer = tf.io.TFRecordWriter(str(tfr_file), tfr_opt)
@@ -155,11 +155,12 @@ def convert_data(data):
 
 if __name__ == "__main__":
     _config = Config("config-default.json")
-    exporter = TFRecordExporter("twic", "tfrecords/", _config)
     files = get_pgn_filenames(_config)
     try:
         for file in files:
-            _games = get_games_from_pgn(files[0])
+            _dataset_name = str(file.name).split('.')[0]
+            exporter = TFRecordExporter(_dataset_name, "tfrecords/", _config)
+            _games = get_games_from_pgn(file)
             for _game in _games:
                 exporter.add_data(_game)
     except KeyboardInterrupt:

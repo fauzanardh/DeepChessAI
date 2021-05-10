@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import tensorflow as tf
 
@@ -7,8 +9,8 @@ def _float_feature(value):
 
 
 class DatasetWrapper(object):
-    def __init__(self, tfr_file):
-        self.tfr_file = tfr_file
+    def __init__(self, tfr_folder):
+        self.tfr_files = [list(Path(tfr_folder).glob("*.tfrecords"))]
 
     @staticmethod
     def parse_tfrecord(record):
@@ -23,7 +25,9 @@ class DatasetWrapper(object):
         return sample["state"], sample["policy"], sample["value"]
 
     def get_dataset(self, batch_size, train_size, is_training=True):
-        dataset = tf.data.TFRecordDataset([self.tfr_file], compression_type="")
+        dataset = tf.data.TFRecordDataset(
+            self.tfr_files, compression_type=tf.python.python_io.TFRecordCompressionType.GZIP
+        )
         dataset = dataset.map(
             self.parse_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
