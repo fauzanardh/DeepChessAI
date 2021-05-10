@@ -4,14 +4,19 @@ from pathlib import Path
 from config import Config
 
 
-def get_game_data_filenames(config: Config):
+def get_game_data_filenames(config: Config) -> list:
     path = Path(config.play_path)
-    return list(sorted(path.glob("*.json")))
+    return sorted(path.glob("*.json"))
 
 
-def get_pgn_filenames(config: Config):
+def get_pgn_filenames(config: Config) -> list:
     path = Path(config.pgn_path)
-    return list(sorted(path.glob("*.pgn")))
+    return sorted(path.glob("*.pgn"))
+
+
+def get_tfr_filenames(config: Config) -> list:
+    path = Path(config.tfr_path)
+    return sorted(path.glob("*.tfrecords"))
 
 
 def write_data(path, data):

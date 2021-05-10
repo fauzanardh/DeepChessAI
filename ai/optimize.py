@@ -8,7 +8,7 @@ from concurrent.futures import ProcessPoolExecutor
 from agent.model import ChessModel
 from config import Config
 from env.chess_env import canon_input_planes, is_white_turn, evaluate
-from util.data_helper import load_data, get_game_data_filenames
+from util.data_helper import load_data, get_game_data_filenames, get_tfr_filenames
 from util.dataset_wrapper import DatasetWrapper
 
 import numpy as np
@@ -57,9 +57,16 @@ class Optimizer(object):
             policy_arr.popleft()
             value_arr.popleft()
 
+    def get_epoch_size(self):
+        files = get_tfr_filenames(self.config)
+        epoch_size = 0
+        for file in files:
+            epoch_size += int(str(file).split('-')[1].split('.')[0])
+        return epoch_size
+
     def train_epoch(self):
         ct = self.config.training
-        epoch_size = ct.epoch_size
+        epoch_size = self.get_epoch_size()
         train_size = int(0.9 * epoch_size)
         val_size = int(0.1 * epoch_size)
         dataset_wrapper = DatasetWrapper(self.config.tfr_path)

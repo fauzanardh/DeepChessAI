@@ -1,10 +1,9 @@
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
-import tensorflow as tf
-import numpy as np
+from pathlib import Path
 
 import chess.pgn
+import numpy as np
+import tensorflow as tf
 
 from agent.player import ChessPlayer
 from config import Config
@@ -157,8 +156,8 @@ def convert_data(data):
 
 def add_to_tfr(file, config: Config):
     dataset_name = str(file.name).split('.')[0]
-    exporter = TFRecordExporter(dataset_name, config)
     games = get_games_from_pgn(file)
+    exporter = TFRecordExporter(f"{dataset_name}-{len(games)}", config)
     for game in games:
         exporter.add_data(game)
     exporter.close()
@@ -174,16 +173,18 @@ if __name__ == "__main__":
         try:
             for future in as_completed(futures):
                 total_games += future.result()
+                print(f"Current total games: {total_games}")
         except KeyboardInterrupt:
             print("Trying to cancel the futures.")
             for future in futures:
-                future.cancel()
-    # for _file in files:
-    #     _dataset_name = str(file.name).split('.')[0]
-    #     _exporter = TFRecordExporter(_dataset_name, _config)
-    #     _games = get_games_from_pgn(file)
-    #     for _game in _games:
-    #         exporter.add_data(_game)
-    #     total_games += exporter.game_idx
-    #     exporter.close()
+                print(f"Added {total_games} games!")
+                exit()
     print(f"Added {total_games} games!")
+# for _file in files:
+#     _dataset_name = str(file.name).split('.')[0]
+#     _exporter = TFRecordExporter(_dataset_name, _config)
+#     _games = get_games_from_pgn(file)
+#     for _game in _games:
+#         exporter.add_data(_game)
+#     total_games += exporter.game_idx
+#     exporter.close()

@@ -82,7 +82,6 @@ class TrainingConfig(object):
     def __init__(self):
         self.max_processes = 1
         self.batch_size = 128
-        self.epoch_size = 0
         self.epoch_to_checkpoint = 1
         self.dataset_size = 100000
         self.start_total_steps = 0
@@ -153,7 +152,6 @@ class Config(object):
             self.training = TrainingConfig()
             self.training.max_processes = _json_config["training"]["max_processes"]
             self.training.batch_size = _json_config["training"]["batch_size"]
-            self.training.epoch_size = _json_config["training"]["epoch_size"]
             self.training.epoch_to_checkpoint = _json_config["training"]["epoch_to_checkpoint"]
             self.training.dataset_size = _json_config["training"]["dataset_size"]
             self.training.start_total_steps = _json_config["training"]["start_total_steps"]
