@@ -21,7 +21,7 @@ class TFRecordExporter(object):
         self.dataset_name = dataset_name
         self.tfr_dir = Path(tfr_dir)
         tfr_opt = tf.io.TFRecordOptions(
-            tf.python.python_io.TFRecordCompressionType.GZIP
+            compression_type="GZIP"
         )
         tfr_file = self.tfr_dir / f"{dataset_name}.tfrecords"
         self.tfr_writer = tf.io.TFRecordWriter(str(tfr_file), tfr_opt)

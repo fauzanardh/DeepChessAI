@@ -26,7 +26,7 @@ class DatasetWrapper(object):
 
     def get_dataset(self, batch_size, train_size, is_training=True):
         dataset = tf.data.TFRecordDataset(
-            self.tfr_files, compression_type=tf.python.python_io.TFRecordCompressionType.GZIP
+            self.tfr_files, compression_type="GZIP"
         )
         dataset = dataset.map(
             self.parse_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
