@@ -54,15 +54,15 @@ class DatasetWrapper(object):
         if is_training:
             dataset = dataset.take(train_size)
             dataset = dataset.shuffle(
-                train_size // 25 if train_size > 8192 else train_size,
+                train_size // 40 if train_size > 8192 else train_size,
                 reshuffle_each_iteration=True
             )
             dataset = dataset.filter(self.filter_data)
-            dataset = dataset.repeat()
         else:
             dataset = dataset.skip(train_size)
             dataset = dataset.filter(self.filter_data)
-            dataset = dataset.repeat()
+        dataset = dataset.unbatch()
+        dataset = dataset.batch(self.config.training.batch_size)
         dataset = dataset.prefetch(
             buffer_size=tf.data.experimental.AUTOTUNE
         )

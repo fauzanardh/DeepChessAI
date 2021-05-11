@@ -80,6 +80,7 @@ class SupervisedLearning(object):
 
 class TrainingConfig(object):
     def __init__(self):
+        self.batch_size = 128
         self.epoch_to_checkpoint = 1
         self.loss_weight = [1.25, 1.0]
 
@@ -144,6 +145,7 @@ class Config(object):
 
             # Config for training
             self.training = TrainingConfig()
+            self.training.batch_size = _json_config["training"]["batch_size"]
             self.training.epoch_to_checkpoint = _json_config["training"]["epoch_to_checkpoint"]
             self.training.loss_weight = _json_config["training"]["loss_weight"]
 

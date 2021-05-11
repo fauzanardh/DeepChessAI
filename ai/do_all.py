@@ -94,15 +94,12 @@ class SelfPlay(object):
         epoch_size = self.get_epoch_size()
         print(f"Epoch Size: {epoch_size}")
         train_size = int(0.9 * epoch_size)
-        val_size = int(0.1 * epoch_size)
         latest_file = list(Path(self.config.tfr_path).glob("*.tfrecords"))
         dataset_wrapper = DatasetWrapper(self.config, tfr_files=latest_file)
         agent.model.fit(
             dataset_wrapper.get_dataset(train_size),
             epochs=ct.epoch_to_checkpoint,
-            steps_per_epoch=train_size,
             validation_data=dataset_wrapper.get_dataset(train_size, is_training=False),
-            validation_steps=val_size,
         )
 
     def compile_model(self, agent):
