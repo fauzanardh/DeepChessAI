@@ -1,6 +1,9 @@
+import copy
+import shutil
 from collections import deque
 from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
 
 from agent.model import ChessModel
 from agent.player import ChessPlayer
@@ -32,57 +35,76 @@ class Optimizer(object):
         self.config.play.simulation_num_per_move = self.config.evaluate.simulation_num_per_move
         self.config.play.tau_decay_rate = self.config.evaluate.tau_decay_rate
 
-    def start(self):
-        self.cur_model = ChessModel(self.config)
-        model_weights = self.cur_model.get_weights_path()
-        self.cur_model.load_path(model_weights[-2])
-        self.cur_pipes = self.manager.list(
-            [self.cur_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.evaluate.max_processes)]
-        )
-        self.new_model = ChessModel(self.config)
-        self.new_model.load_path(model_weights[-1])
-        self.new_pipes = self.manager.list(
-            [self.new_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.evaluate.max_processes)]
-        )
-        is_better = self.evaluate_model()
-        if is_better:
-            print(f"Model {model_weights[-1]} is better than {model_weights[-2]}!")
-        else:
-            print(f"Model {model_weights[-2]} is better than {model_weights[-1]}!")
+    def load_best(self, config=None):
+        agent = ChessModel(self.config if config is None else config)
+        agent.load_best()
+        return agent
 
-    def evaluate_model(self):
+    def load_latest(self, config=None):
+        agent = ChessModel(self.config if config is None else config)
+        agent.load_latest()
+        return agent
+
+    def start(self):
+        config = copy.deepcopy(self.config)
+        config.play.c_puct = self.config.evaluate.c_puct
+        config.play.game_num = self.config.evaluate.game_num
+        config.play.noise_eps = self.config.evaluate.noise_eps
+        config.play.simulation_num_per_move = self.config.evaluate.simulation_num_per_move
+        config.play.tau_decay_rate = self.config.evaluate.tau_decay_rate
+
+        best_model = self.load_best(config)
+        best_pipes = self.manager.list(
+            [best_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.evaluate.max_processes)]
+        )
+        latest_model = self.load_latest(config)
+        latest_pipes = self.manager.list(
+            [latest_model.get_pipes(self.config.play.search_threads) for _ in range(self.config.evaluate.max_processes)]
+        )
+        is_better = self.evaluate_model(best_pipes, latest_pipes)
+        if is_better:
+            path = Path(self.config.model_path) / "best_model"
+            best_model_path = path / "model.h5"
+            all_weights = list(Path(self.config.model_path).glob("model_*.h5"))
+            latest_weight = str(max(all_weights, key=lambda x: int(str(x).split("_")[1].split(".")[0])))
+            print("Latest model is better, copying the model to the best_model/ folder")
+            shutil.copy(latest_weight, best_model_path)
+        else:
+            print("Latest model is worse, continuing")
+
+    def evaluate_model(self, best_pipes, latest_pipes):
         futures = []
-        with self.executor as executor:
+        with ProcessPoolExecutor(max_workers=self.config.evaluate.max_processes) as executor:
             for game_idx in range(self.config.evaluate.game_num):
                 future = executor.submit(
                     play_game,
                     self.config,
-                    cur=self.cur_pipes,
-                    new=self.new_pipes,
+                    cur=best_pipes,
+                    new=latest_pipes,
                     cur_white=(game_idx % 2 == 0)
                 )
                 futures.append(future)
-            results = []
+            res = []
             for future in as_completed(futures):
-                new_score, env, cur_white = future.result()
-                results.append(new_score)
-                win_rate = sum(results) / len(results)
-                game_idx = len(results)
+                latest_score, env, is_bm_white = future.result()
+                res.append(latest_score)
+                win_rate = sum(res) / len(res)
+                game_idx = len(res)
                 print(
-                    f"game {game_idx:05} new_score{new_score:.2f} as {'black' if cur_white else 'white'} "
+                    f"game {game_idx:05} new_score{latest_score:.2f} as {'black' if is_bm_white else 'white'} "
                     f"{'by resign' if env.is_resigned else ''} "
-                    f"win_rate={win_rate*100:5.2f} "
+                    f"win_rate={win_rate * 100:5.2f} "
                     f"| fen={env.observation}"
                 )
-                if len(results) - sum(results) >= self.config.evaluate.game_num * (1 - self.config.evaluate.replace_rate):
-                    print(f"lose count reached {results.count(0)}, worse model.")
+                if len(res) - sum(res) >= self.config.evaluate.game_num * (1 - self.config.evaluate.replace_rate):
+                    print(f"lose count reached {res.count(0)}, worse model.")
                     return False
-                if sum(results) >= self.config.evaluate.game_num * self.config.evaluate.replace_rate:
-                    print(f"win count reached {results.count(1)}, better model.")
+                if sum(res) >= self.config.evaluate.game_num * self.config.evaluate.replace_rate:
+                    print(f"win count reached {res.count(1)}, better model.")
                     return True
 
-            win_rate = sum(results) / len(results)
-            print(f"win_rate={win_rate*100:.2f}%")
+            win_rate = sum(res) / len(res)
+            print(f"win_rate={win_rate * 100:.2f}%")
             return win_rate >= self.config.evaluate.replace_rate
 
 
@@ -108,9 +130,9 @@ def play_game(config: Config, cur, new, cur_white: bool):
             action = black.action(env)
         try:
             env.step(action)
-            # print('=' * 20)
-            # print(env.board)
-            # print('=' * 20)
+            print('=' * 20)
+            print(env.board)
+            print('=' * 20)
         except Exception as e:
             print(e)
             env.adjudicate()

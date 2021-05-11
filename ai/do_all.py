@@ -103,12 +103,7 @@ class SelfPlay(object):
         )
 
     def compile_model(self, agent):
-        lr_schedule = ExponentialDecay(
-            initial_learning_rate=3e-4,
-            decay_steps=10000,
-            decay_rate=0.9
-        )
-        opt = Adam(learning_rate=lr_schedule)
+        opt = Adam(learning_rate=3e-4)
         losses = ["categorical_crossentropy", "mean_squared_error"]
         agent.model.compile(optimizer=opt, loss=losses, loss_weights=self.config.training.loss_weight)
 
