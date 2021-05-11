@@ -12,7 +12,11 @@ def _float_feature(value):
 class DatasetWrapper(object):
     def __init__(self, config: Config, tfr_files=None):
         self.config = config
-        self.tfr_files = list(Path(self.config.tfr_path).glob("*.tfrecords")) if tfr_files is None else tfr_files
+        if tfr_files is None:
+            files = [str(path) for path in list(Path(self.config.tfr_path).glob("*.tfrecords"))]
+        else:
+            files = [str(path) for path in tfr_files]
+        self.tfr_files = files
 
     @staticmethod
     def parse_tfrecord(record):
