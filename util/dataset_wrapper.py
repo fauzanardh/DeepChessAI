@@ -1,7 +1,8 @@
 from pathlib import Path
 
-import numpy as np
 import tensorflow as tf
+
+from config import Config
 
 
 def _float_feature(value):
@@ -9,8 +10,9 @@ def _float_feature(value):
 
 
 class DatasetWrapper(object):
-    def __init__(self, tfr_folder):
-        self.tfr_files = [list(Path(tfr_folder).glob("*.tfrecords"))]
+    def __init__(self, config: Config, tfr_files=None):
+        self.config = config
+        self.tfr_files = list(Path(self.config.tfr_path).glob("*.tfrecords")) if tfr_files is None else tfr_files
 
     @staticmethod
     def parse_tfrecord(record):
@@ -24,7 +26,25 @@ class DatasetWrapper(object):
         sample = tf.io.parse_single_example(record, features)
         return sample["state"], sample["policy"], sample["value"]
 
-    def get_dataset(self, batch_size, train_size, is_training=True):
+    def filter_data(self, state, policy, value):
+        return tf.convert_to_tensor(
+            tf.py_function(
+                self.filter_data_py,
+                [state, policy, value, self.config.play.min_resign_turn],
+                [bool]
+            )
+        )
+
+    @staticmethod
+    def filter_data_py(state, policy, value, min_resign_turn):
+        _state = state.numpy()
+        _policy = policy.numpy()
+        _value = value.numpy()
+        return state.shape[0] >= min_resign_turn and \
+               policy.shape[0] >= min_resign_turn and \
+               value.shape[0] >= min_resign_turn
+
+    def get_dataset(self, train_size, is_training=True):
         dataset = tf.data.TFRecordDataset(
             self.tfr_files, compression_type="GZIP"
         )
@@ -32,12 +52,17 @@ class DatasetWrapper(object):
             self.parse_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
         if is_training:
-            dataset.repeat()
             dataset = dataset.take(train_size)
-            dataset = dataset.shuffle(2048)
+            dataset = dataset.shuffle(
+                train_size // 25 if train_size > 8192 else train_size,
+                reshuffle_each_iteration=True
+            )
+            dataset = dataset.filter(self.filter_data)
+            dataset = dataset.repeat()
         else:
             dataset = dataset.skip(train_size)
-        dataset.batch(batch_size)
+            dataset = dataset.filter(self.filter_data)
+            dataset = dataset.repeat()
         dataset = dataset.prefetch(
             buffer_size=tf.data.experimental.AUTOTUNE
         )

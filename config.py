@@ -80,13 +80,7 @@ class SupervisedLearning(object):
 
 class TrainingConfig(object):
     def __init__(self):
-        self.max_processes = 1
-        self.batch_size = 128
         self.epoch_to_checkpoint = 1
-        self.dataset_size = 100000
-        self.start_total_steps = 0
-        self.save_model_steps = 25
-        self.load_data_steps = 100
         self.loss_weight = [1.25, 1.0]
 
 
@@ -127,6 +121,12 @@ class Config(object):
             self.model.res_layer_num = _json_config["model"]["res_layer_num"]
             self.model.value_fc_size = _json_config["model"]["value_fc_size"]
 
+            # Config for supervised learning
+            self.supervised_learning = SupervisedLearning()
+            self.supervised_learning.max_processes = _json_config["supervised_learning"]["max_processes"]
+            self.supervised_learning.min_elo_policy = _json_config["supervised_learning"]["min_elo_policy"]
+            self.supervised_learning.max_elo_policy = _json_config["supervised_learning"]["max_elo_policy"]
+
             # Config for the Player
             self.play = PlayConfig()
             self.play.c_puct = _json_config["play"]["c_puct"]
@@ -142,21 +142,9 @@ class Config(object):
             self.play.tau_decay_rate = _json_config["play"]["tau_decay_rate"]
             self.play.virtual_loss = _json_config["play"]["virtual_loss"]
 
-            # Config for supervised learning
-            self.supervised_learning = SupervisedLearning()
-            self.supervised_learning.max_processes = _json_config["supervised_learning"]["max_processes"]
-            self.supervised_learning.min_elo_policy = _json_config["supervised_learning"]["min_elo_policy"]
-            self.supervised_learning.max_elo_policy = _json_config["supervised_learning"]["max_elo_policy"]
-
             # Config for training
             self.training = TrainingConfig()
-            self.training.max_processes = _json_config["training"]["max_processes"]
-            self.training.batch_size = _json_config["training"]["batch_size"]
             self.training.epoch_to_checkpoint = _json_config["training"]["epoch_to_checkpoint"]
-            self.training.dataset_size = _json_config["training"]["dataset_size"]
-            self.training.start_total_steps = _json_config["training"]["start_total_steps"]
-            self.training.save_model_steps = _json_config["training"]["save_model_steps"]
-            self.training.load_data_steps = _json_config["training"]["load_data_steps"]
             self.training.loss_weight = _json_config["training"]["loss_weight"]
 
             # Config for evaluator
@@ -175,8 +163,8 @@ class Config(object):
             self.pgn_path = ""
             self.tfr_path = ""
             self.model = ModelConfig()
-            self.play = PlayConfig()
             self.supervised_learning = SupervisedLearning()
+            self.play = PlayConfig()
             self.training = TrainingConfig()
             self.evaluate = EvaluateConfig()
 
@@ -186,7 +174,7 @@ class Config(object):
 
     def save_config(self, path: str):
         with open(path, "w+") as fp:
-            fp.write(json.dumps(self, default=lambda o: o.__dict__, indent=4))
+            fp.write(json.dumps(self, default=lambda o: o.__dict__, indent=2))
 
 
 Config.unflipped_index = [Config.labels.index(x) for x in Config.flipped_labels]

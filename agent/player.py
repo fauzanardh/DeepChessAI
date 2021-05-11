@@ -179,6 +179,7 @@ class ChessPlayer(object):
                 _p = (1 - e) * _p + e * noise[i]
                 i += 1
             b = a_s.q + c_puct * _p * _xx / (1 + a_s.n)
+            # print(a_s.q, c_puct, _p, _xx, a_s.n)
             if b > best_s:
                 best_s = b
                 best_a = action
@@ -219,5 +220,5 @@ class ChessPlayer(object):
 
 
 def state_key(env: ChessEnv):
-    fen = env.board.fen().rsplit(' ', 1)
+    fen = env.observation.rsplit(' ', 1)
     return fen[0]

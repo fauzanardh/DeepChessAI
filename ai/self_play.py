@@ -48,7 +48,7 @@ class SelfPlay(object):
                     f"game {game_idx:05} "
                     f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
                     f"{'by resign' if env.is_resigned else ''} "
-                    f"| fen={env.board.fen()}"
+                    f"| fen={env.observation}"
                 )
                 self.buffer += data
                 if game_idx % self.config.play.max_game_per_file == 0:

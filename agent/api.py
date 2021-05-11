@@ -24,19 +24,18 @@ class ChessModelAPI(object):
             try:
                 ready = connection.wait(self.pipes, timeout=0.1)
             except OSError:
-                break
+                return
             if not ready:
                 continue
             data, result_pipes = [], []
             for pipe in ready:
-                while pipe.poll():
-                    try:
-                        _data = pipe.recv()
-                        data.append(_data)
+                try:
+                    while pipe.poll():
+                        data.append(pipe.recv())
                         result_pipes.append(pipe)
-                    except BrokenPipeError:
-                        print("Pipe closed!")
-                        return
+                except BrokenPipeError:
+                    print("Pipe closed!")
+                    return
 
             data = np.asarray(data, dtype=np.float32)
             policy_arr, value_arr = self.agent.model.predict_on_batch(data)

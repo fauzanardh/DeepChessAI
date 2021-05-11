@@ -2,12 +2,12 @@ import sys
 import multiprocessing as mp
 
 from config import Config
-from ai.self_play_optimize import start as StartBoth
+from ai.do_all import start as DoAll
 
 
 def start():
     conf = Config("config-default.json")
-    StartBoth(conf)
+    DoAll(conf)
 
 
 if __name__ == "__main__":

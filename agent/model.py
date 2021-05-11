@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from tensorflow.keras import Input, Model
@@ -97,6 +98,29 @@ class ChessModel(object):
         print(f"Loading weights from {path}")
         self.model.load_weights(str(path))
 
+    def load_best(self):
+        path = Path(self.config.model_path) / "best_model"
+        best_model_path = path / "model.h5"
+        if path.exists():
+            if not best_model_path.exists():
+                all_weights = list(Path(self.config.model_path).glob("model_*.h5"))
+                if len(all_weights) == 0:
+                    print("No weight(s) found, creating a new model.")
+                    self.save()
+                all_weights = list(Path(self.config.model_path).glob("model_*.h5"))
+                latest_weight = str(max(all_weights, key=lambda x: int(str(x).split("_")[1].split(".")[0])))
+                shutil.copy(latest_weight, best_model_path)
+        else:
+            path.mkdir()
+            all_weights = list(Path(self.config.model_path).glob("model_*.h5"))
+            if len(all_weights) == 0:
+                print("No weight(s) found, creating a new model.")
+                self.save()
+            all_weights = list(Path(self.config.model_path).glob("model_*.h5"))
+            latest_weight = str(max(all_weights, key=lambda x: int(str(x).split("_")[1].split(".")[0])))
+            shutil.copy(latest_weight, best_model_path)
+        self.model.load_weights(str(best_model_path))
+
     # Load the selected model weight
     def load_n(self, n: int):
         path = Path(self.config.model_path) / f"model_{n:05}.h5"
@@ -110,7 +134,7 @@ class ChessModel(object):
         if path.exists():
             weights_path = list(path.glob("model_*.h5"))
             if len(weights_path) != 0:
-                latest_weight = str(max(list(weights_path), key=lambda x: int(str(x).split("_")[1].split(".")[0])))
+                latest_weight = str(max(weights_path, key=lambda x: int(str(x).split("_")[1].split(".")[0])))
                 print(f"Loading weights from {latest_weight}")
                 self.model.load_weights(latest_weight)
             else:
@@ -119,6 +143,7 @@ class ChessModel(object):
         else:
             print("New run detected.")
             path.mkdir()
+            self.save()
 
     # Save the latest model weight
     def save(self):

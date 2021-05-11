@@ -1,14 +1,11 @@
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-import chess.pgn
 import numpy as np
 import tensorflow as tf
 
 from agent.player import ChessPlayer
 from config import Config
 from env.chess_env import ChessEnv, Winner, canon_input_planes, is_white_turn, evaluate
-from util.data_helper import get_pgn_filenames
 
 
 def _float_feature(value):
@@ -20,6 +17,7 @@ class TFRecordExporter(object):
         self.config = config
         self.dataset_name = dataset_name
         self.tfr_dir = Path(self.config.tfr_path)
+        self.tfr_dir.mkdir(exist_ok=True)
         tfr_opt = tf.io.TFRecordOptions(
             compression_type="GZIP"
         )
@@ -30,16 +28,7 @@ class TFRecordExporter(object):
     def close(self):
         self.tfr_writer.close()
 
-    def add_data(self, game):
-        self.game_idx += 1
-        env, data = get_buffer(self.config, game)
-        print(
-            f"{self.dataset_name} "
-            f"game {self.game_idx:05} "
-            f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
-            f"{'by resign' if env.is_resigned else ''} "
-            f"| {env.observation}"
-        )
+    def add_from_buffer(self, data, lock=None):
         _data = convert_data(data)
         state = _data[0].reshape(-1)
         policy = _data[1].reshape(-1)
@@ -53,26 +42,23 @@ class TFRecordExporter(object):
                 }
             )
         )
-        self.tfr_writer.write(ex.SerializeToString())
+        if lock is not None:
+            with lock:
+                self.tfr_writer.write(ex.SerializeToString())
+        else:
+            self.tfr_writer.write(ex.SerializeToString())
 
-
-def get_games_from_pgn(filename):
-    pgn = open(filename, "r", errors='ignore')
-    offsets = []
-    while True:
-        offset = pgn.tell()
-        headers = chess.pgn.read_headers(pgn)
-        if headers is None:
-            break
-        offsets.append(offset)
-    offsets = offsets
-    n = len(offsets)
-    print(f"Found {n} games!")
-    games = []
-    for offset in offsets:
-        pgn.seek(offset)
-        games.append(chess.pgn.read_game(pgn))
-    return games
+    def add_data(self, game):
+        self.game_idx += 1
+        env, data = get_buffer(self.config, game)
+        self.add_from_buffer(data)
+        print(
+            f"{self.dataset_name} "
+            f"game {self.game_idx:05} "
+            f"halfmoves={env.num_halfmoves:03} {env.winner:12} "
+            f"{'by resign' if env.is_resigned else ''} "
+            f"| {env.observation}"
+        )
 
 
 def clip_elo_policy(config, elo):
@@ -152,39 +138,3 @@ def convert_data(data):
     return np.asarray(state_list, dtype=np.float32), \
            np.asarray(policy_list, dtype=np.float32), \
            np.asarray(value_list, dtype=np.float32)
-
-
-def add_to_tfr(file, config: Config):
-    dataset_name = str(file.name).split('.')[0]
-    games = get_games_from_pgn(file)
-    exporter = TFRecordExporter(f"{dataset_name}-{len(games)}", config)
-    for game in games:
-        exporter.add_data(game)
-    exporter.close()
-    return exporter.game_idx
-
-
-if __name__ == "__main__":
-    _config = Config("config-default.json")
-    files = get_pgn_filenames(_config)
-    total_games = 0
-    with ProcessPoolExecutor(max_workers=6) as executor:
-        futures = [executor.submit(add_to_tfr, file, _config) for file in files]
-        try:
-            for future in as_completed(futures):
-                total_games += future.result()
-                print(f"Current total games: {total_games}")
-        except KeyboardInterrupt:
-            print("Trying to cancel the futures.")
-            for future in futures:
-                print(f"Added {total_games} games!")
-                exit()
-    print(f"Added {total_games} games!")
-# for _file in files:
-#     _dataset_name = str(file.name).split('.')[0]
-#     _exporter = TFRecordExporter(_dataset_name, _config)
-#     _games = get_games_from_pgn(file)
-#     for _game in _games:
-#         exporter.add_data(_game)
-#     total_games += exporter.game_idx
-#     exporter.close()

@@ -72,7 +72,7 @@ class Optimizer(object):
                     f"game {game_idx:05} new_score{new_score:.2f} as {'black' if cur_white else 'white'} "
                     f"{'by resign' if env.is_resigned else ''} "
                     f"win_rate={win_rate*100:5.2f} "
-                    f"| fen={env.board.fen()}"
+                    f"| fen={env.observation}"
                 )
                 if len(results) - sum(results) >= self.config.evaluate.game_num * (1 - self.config.evaluate.replace_rate):
                     print(f"lose count reached {results.count(0)}, worse model.")
