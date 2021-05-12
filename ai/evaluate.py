@@ -128,14 +128,13 @@ def play_game(config: Config, cur, new, cur_white: bool):
             action = white.action(env)
         else:
             action = black.action(env)
-        try:
-            env.step(action)
-            print('=' * 20)
-            print(env.board)
-            print('=' * 20)
-        except Exception as e:
-            print(e)
-            env.adjudicate()
+
+        print('=' * 20)
+        print(action)
+        env.step(action)
+        print('-' * 20)
+        print(env.board)
+        print('=' * 20)
 
         if env.num_halfmoves >= config.play.max_game_length:
             env.adjudicate()

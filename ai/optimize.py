@@ -1,7 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 from agent.model import ChessModel
 from config import Config

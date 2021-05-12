@@ -8,7 +8,6 @@ from multiprocessing import Manager
 from pathlib import Path
 
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 from agent.model import ChessModel
 from agent.player import ChessPlayer
@@ -188,14 +187,10 @@ def self_play_buffer(config: Config, pipes):
 
     while not env.done:
         if env.white_to_move:
-            action = white.action(env, can_stop=False)
+            action = white.action(env)
         else:
-            action = black.action(env, can_stop=False)
-        try:
-            env.step(action)
-        except Exception as e:
-            print(e)
-            env.adjudicate()
+            action = black.action(env)
+        env.step(action)
 
         if env.num_halfmoves >= config.play.max_game_length:
             env.adjudicate()
@@ -240,14 +235,12 @@ def evaluate_buffer(config: Config, cur, new, cur_white: bool):
             action = white.action(env)
         else:
             action = black.action(env)
-        try:
-            env.step(action)
-            # print('=' * 20)
-            # print(env.board)
-            # print('=' * 20)
-        except Exception as e:
-            print(e)
-            env.adjudicate()
+        # print('=' * 20)
+        # print(action)
+        env.step(action)
+        # print('-' * 20)
+        # print(env.board)
+        # print('=' * 20)
 
         if env.num_halfmoves >= config.play.max_game_length:
             env.adjudicate()

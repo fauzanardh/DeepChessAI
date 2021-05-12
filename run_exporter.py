@@ -36,17 +36,18 @@ def get_games_from_pgn(filename):
         pgn.seek(offset)
         try:
             games.append(chess.pgn.read_game(pgn))
-        except ValueError:
+        except:
             continue
     return games
 
 
-_config = Config("config-default.json")
-files = get_pgn_filenames(_config)
-total_games = 0
-with ProcessPoolExecutor(max_workers=1) as executor:
-    futures = [executor.submit(add_to_tfr, file, _config) for file in files]
-    for future in as_completed(futures):
-        total_games += future.result()
-        print(f"Current total games: {total_games}")
-print(f"Added {total_games} games!")
+if __name__ == '__main__':
+    _config = Config("config-default.json")
+    files = get_pgn_filenames(_config)
+    total_games = 0
+    with ProcessPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(add_to_tfr, file, _config) for file in files]
+        for future in as_completed(futures):
+            total_games += future.result()
+            print(f"Current total games: {total_games}")
+    print(f"Added {total_games} games!")

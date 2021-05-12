@@ -76,10 +76,12 @@ def self_play_buffer(config: Config, pipes):
             action = white.action(env)
         else:
             action = black.action(env)
-        try:
-            env.step(action)
-        except Exception as e:
-            env.adjudicate()
+        print('=' * 20)
+        print(action)
+        env.step(action)
+        print('-' * 20)
+        print(env.board)
+        print('=' * 20)
 
         if env.num_halfmoves >= config.play.max_game_length:
             env.adjudicate()
