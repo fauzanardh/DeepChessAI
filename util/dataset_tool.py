@@ -50,7 +50,12 @@ class TFRecordExporter(object):
 
     def add_data(self, game):
         self.game_idx += 1
-        env, data = get_buffer(self.config, game)
+        try:
+            env, data = get_buffer(self.config, game)
+        except Exception as e:
+            print(e)
+            print("Error occurred, ignoring error.")
+            return
         self.add_from_buffer(data)
         print(
             f"{self.dataset_name} "
@@ -71,10 +76,6 @@ def get_buffer(config: Config, game):
     white = ChessPlayer(config, dummy=True)
     black = ChessPlayer(config, dummy=True)
     result = game.headers["Result"]
-    if "WhiteElo" not in game.headers:
-        game.headers["WhiteElo"] = "2500"
-    if "BlackElo" not in game.headers:
-        game.headers["BlackElo"] = "2500"
     white_elo, black_elo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
     white_weight = clip_elo_policy(config, white_elo)
     black_weight = clip_elo_policy(config, black_elo)

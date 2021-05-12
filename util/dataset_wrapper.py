@@ -44,9 +44,13 @@ class DatasetWrapper(object):
         _state = state.numpy()
         _policy = policy.numpy()
         _value = value.numpy()
-        return state.shape[0] >= min_resign_turn and \
-               policy.shape[0] >= min_resign_turn and \
-               value.shape[0] >= min_resign_turn
+        return _state.shape[0] >= min_resign_turn and \
+               _policy.shape[0] >= min_resign_turn and \
+               _value.shape[0] >= min_resign_turn
+
+    @staticmethod
+    def convert(state, policy, value):
+        return state, {"policy_out": policy, "value_out": value}
 
     def get_dataset(self, train_size, is_training=True):
         dataset = tf.data.TFRecordDataset(
@@ -62,9 +66,15 @@ class DatasetWrapper(object):
                 reshuffle_each_iteration=True
             )
             dataset = dataset.filter(self.filter_data)
+            dataset = dataset.map(
+                self.convert, num_parallel_calls=tf.data.experimental.AUTOTUNE
+            )
         else:
             dataset = dataset.skip(train_size)
             dataset = dataset.filter(self.filter_data)
+            dataset = dataset.map(
+                self.convert, num_parallel_calls=tf.data.experimental.AUTOTUNE
+            )
         dataset = dataset.unbatch()
         dataset = dataset.batch(self.config.training.batch_size)
         dataset = dataset.prefetch(

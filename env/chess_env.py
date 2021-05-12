@@ -48,10 +48,10 @@ class ChessEnv:
         return self.board.turn == chess.WHITE
 
     # Takes an action and update the game state
-    def step(self, action: str, check_over=True):
+    def step(self, action, check_over=True):
         # check if the action returned from the AI is NONE
         # meaning it don't have any moves
-        if check_over and action is None:
+        if (action is None) and check_over:
             self._resign()
 
         self.board.push_uci(action)
