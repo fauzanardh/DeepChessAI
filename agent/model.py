@@ -59,8 +59,8 @@ class ChessModel(object):
                            name="policy_out")(x)
 
         # Value Network output
-        x = Conv2D(filters=4, kernel_size=1, data_format="channels_first", use_bias=False,
-                   kernel_regularizer=l2(_mc.l2_reg), name="value_conv-1-4")(res_out)
+        x = Conv2D(filters=1, kernel_size=1, data_format="channels_first", use_bias=False,
+                   kernel_regularizer=l2(_mc.l2_reg), name="value_conv-1-1")(res_out)
         x = BatchNormalization(axis=1, name="value_batchnorm")(x)
         x = Activation("relu", name="value_relu")(x)
         x = Flatten(name="value_flatten")(x)
