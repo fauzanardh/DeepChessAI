@@ -120,7 +120,7 @@ class ChessPlayer(object):
         with self.node_lock[state]:
             cur_visit_stats.sum_n += -virtual_loss + 1
             cur_stats.n += -virtual_loss + 1
-            cur_stats.w = virtual_loss + leaf_v
+            cur_stats.w += virtual_loss + leaf_v
             cur_stats.q = cur_stats.w / cur_stats.n
 
         return leaf_v
@@ -162,6 +162,7 @@ class ChessPlayer(object):
             cur_visit_stats.p = None
 
         _xx = np.sqrt(cur_visit_stats.sum_n + 1)
+
         e = self.config.play.noise_eps
         c_puct = self.config.play.c_puct
         dir_alpha = self.config.play.dirichlet_alpha
