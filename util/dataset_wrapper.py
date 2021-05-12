@@ -41,12 +41,9 @@ class DatasetWrapper(object):
 
     @staticmethod
     def filter_data_py(state, policy, value, min_resign_turn):
-        _state = state.numpy()
-        _policy = policy.numpy()
-        _value = value.numpy()
-        return _state.shape[0] >= min_resign_turn and \
-               _policy.shape[0] >= min_resign_turn and \
-               _value.shape[0] >= min_resign_turn
+        return state.shape[0] >= min_resign_turn and \
+               policy.shape[0] >= min_resign_turn and \
+               value.shape[0] >= min_resign_turn
 
     @staticmethod
     def convert(state, policy, value):
