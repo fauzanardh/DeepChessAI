@@ -32,7 +32,7 @@ class TFRecordExporter(object):
         _data = convert_data(data)
         state = _data[0].reshape(-1)
         policy = _data[1].reshape(-1)
-        value = _data[2].reshape(-1)
+        value = _data[2]
         ex = tf.train.Example(
             features=tf.train.Features(
                 feature={
