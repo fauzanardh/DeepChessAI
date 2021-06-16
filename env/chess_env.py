@@ -11,7 +11,19 @@ CASTLING_ORDER = "KQkq"  # 4x8x8
 Winner = Enum("Winner", "white black draw")
 
 
-class ChessEnv:
+class ChessEnv(object):
+    """
+    Chess Environment where a chess game is played
+
+    :ivar board:
+        Current board state
+    :ivar num_halfmoves:
+        Number of half moves performed in total
+    :ivar is_resigned:
+        Whether the non-winner is resigned
+    :ivar result:
+        String encoded result ("1-0", "0-1", "1/2-1/2")
+    """
     def __init__(self):
         self.board = None
         self.num_halfmoves = 0
@@ -19,36 +31,54 @@ class ChessEnv:
         self.is_resigned = False
         self.result = None
 
-    # Resets the environment to begin a new game
     def reset(self):
+        """
+        Resets the environment to begin a new game
+        :return:
+            self
+        """
         self.board = chess.Board()
         self.num_halfmoves = 0
         self.winner = None
         self.is_resigned = False
         return self
 
-    # This function acts like reset,
-    # but it resets to the supplied board position
     def update(self, board):
+        """
+        This function acts like reset,
+        but it resets to the supplied board position
+
+        :param board:
+            Position to reset to
+        :return:
+            self
+        """
         self.board = chess.Board(board)
         self.winner = None
         self.is_resigned = False
         return self
 
     @property
-    def done(self):
+    def done(self) -> bool:
         return self.winner is not None
 
     @property
-    def white_won(self):
+    def white_won(self) -> bool:
         return self.winner == Winner.white
 
     @property
-    def white_to_move(self):
+    def white_to_move(self) -> bool:
         return self.board.turn == chess.WHITE
 
-    # Takes an action and update the game state
-    def step(self, action, check_over=True):
+    def step(self, action: str, check_over: bool = True) -> None:
+        """
+        Takes an action and updates the game state
+
+        :param action:
+            Action to take in UCI string
+        :param check_over:
+            Whether to check if game is over
+        """
         # check if the action returned from the AI is NONE
         # meaning it don't have any moves
         if (action is None) and check_over:
@@ -60,7 +90,7 @@ class ChessEnv:
         if check_over and self.board.result(claim_draw=True) != '*':
             self._game_over()
 
-    def _resign(self):
+    def _resign(self) -> None:
         self.is_resigned = True
         if self.white_to_move:
             self.winner = Winner.black
@@ -69,7 +99,7 @@ class ChessEnv:
             self.winner = Winner.white
             self.result = "1-0"
 
-    def _game_over(self):
+    def _game_over(self) -> None:
         if self.winner is None:
             self.result = self.board.result(claim_draw=True)
             if self.result == "1-0":
@@ -79,7 +109,10 @@ class ChessEnv:
             else:
                 self.winner = Winner.draw
 
-    def adjudicate(self):
+    def adjudicate(self) -> None:
+        """
+        Adjudicate the game
+        """
         score = self._evaluate(absolute=True)
         # if the score is less than 0.01 it's pretty much a draw,
         # since the player advantage is not significant
@@ -94,28 +127,47 @@ class ChessEnv:
             self.result = "0-1"
 
     def copy(self):
+        """
+        Copy the current environment
+        """
         env = copy.copy(self)
         env.board = copy.copy(self.board)
         return env
 
-    def render(self):
-        print(self.board)
-
     @property
-    def observation(self):
+    def observation(self) -> str:
         return self.board.fen()
 
-    # Returns a representation of the board using an (18, 8, 8) dimension array
     def canonical_input_planes(self):
+        """
+        :return:
+            a representation of the board using an (18, 8, 8) dimension array
+        """
         return canon_input_planes(self.board.fen())
 
-    # try to evaluate the current board value
-    # based on the pieces on the board
-    def _evaluate(self, absolute=False):
+    def _evaluate(self, absolute=False) -> float:
+        """
+        Evaluate the current board position
+
+        :param absolute:
+            Whether it is absolute value or not
+        :return:
+            Score of the current board position
+        """
         return evaluate(self.board.fen(), absolute)
 
 
-def evaluate(fen, absolute=False):
+def evaluate(fen: str, absolute: bool = False) -> float:
+    """
+    Evaluate the fen string
+
+    :param fen:
+        FEN string to be evaluated
+    :param absolute:
+        Whether it is absolute value or not
+    :return:
+        Score of the fen string
+    """
     pieces_val = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1}
     ans = 0.0
     total = 0
@@ -136,7 +188,15 @@ def evaluate(fen, absolute=False):
     return np.tanh(v * 3)
 
 
-def flip_fen(fen):
+def flip_fen(fen: str) -> str:
+    """
+    Flip the position of the FEN string
+
+    :param fen:
+        FEN string to be flipped
+    :return:
+        Flipped FEN string
+    """
     _fen = fen.split(' ')
     rows = _fen[0].split('/')
 
@@ -154,23 +214,34 @@ def flip_fen(fen):
            + " " + _fen[3] + " " + _fen[4] + " " + _fen[5]
 
 
-def alg_to_coord(alg):
-    # example:
-    # move = "a1", this will return (0, 0)
-    # move = "h8", this will return (7, 7)
+def alg_to_coord(alg: str) -> (int, int):
+    """
+    move = "a1", this will return (0, 0)
+    move = "h8", this will return (7, 7)
+    """
     rank = 8 - int(alg[1])
     file = ord(alg[0]) - ord('a')
     return rank, file
 
 
-def coord_to_alg(coord):
-    # the complete opposite to function `alg_to_coord`
+def coord_to_alg(coord: (int, int)) -> str:
+    """
+    the complete opposite to function `alg_to_coord`
+    """
     letter = chr(ord('a') + coord[1])
     number = str(8 - coord[0])
     return letter + number
 
 
-def aux_planes(fen):
+def aux_planes(fen: str):
+    """
+    Make auxiliary planes representation of the FEN string
+
+    :param fen:
+        FEN string to be encoded
+    :return:
+        Auxiliary planes presentation of the FEN string
+    """
     _fen = fen.split(' ')
 
     # creating array for storing en-passant move
@@ -197,7 +268,15 @@ def aux_planes(fen):
     return ret
 
 
-def replace_tags(fen):
+def replace_tags(fen: str) -> str:
+    """
+    Replace the number with multiple of ones
+
+    :param fen:
+        FEN string to be replaced
+    :return:
+        Replaced FEN string
+    """
     fen = fen.split(" ")[0]
     fen = fen.replace("2", "11")
     fen = fen.replace("3", "111")
@@ -209,7 +288,15 @@ def replace_tags(fen):
     return fen.replace("/", "")
 
 
-def to_planes(fen):
+def to_planes(fen: str):
+    """
+    Make piece planes representation of the FEN string
+
+    :param fen:
+        FEN string to be encoded
+    :return:
+        Piece planes presentation of the FEN string
+    """
     board_state = replace_tags(fen)
     pieces_both = np.zeros((12, 8, 8), dtype=np.float32)
     for rank in range(8):
@@ -221,7 +308,15 @@ def to_planes(fen):
     return pieces_both
 
 
-def all_input_planes(fen):
+def all_input_planes(fen: str):
+    """
+    Make combined auxiliary planes and piece planes
+
+    :param fen:
+        FEN string to be encoded
+    :return:
+        Combined auxiliary planes and piece planes
+    """
     current_aux_planes = aux_planes(fen)
     pieces_both_player = to_planes(fen)
     ret = np.vstack((pieces_both_player, current_aux_planes))
@@ -229,11 +324,15 @@ def all_input_planes(fen):
     return ret
 
 
-def canon_input_planes(fen):
+def canon_input_planes(fen: str):
+    """
+    :return:
+        a representation of the board using an (18, 8, 8) dimension array
+    """
     if not is_white_turn(fen):
         fen = flip_fen(fen)
     return all_input_planes(fen)
 
 
-def is_white_turn(fen):
+def is_white_turn(fen: str) -> bool:
     return fen.split(' ')[1] == 'w'

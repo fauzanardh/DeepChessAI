@@ -1,22 +1,39 @@
 import shutil
+from multiprocessing import Pipe
 from pathlib import Path
+from typing import List
 
 from tensorflow.keras import Input, Model
-from tensorflow.keras.layers import Conv2D, Activation, Dense, Flatten, Add, BatchNormalization
-from tensorflow.keras.regularizers import l2
 from tensorflow.keras.backend import clear_session
+from tensorflow.keras.layers import Conv2D, Activation, Dense, Flatten, Add, BatchNormalization, Layer
+from tensorflow.keras.regularizers import l2
 
 from agent.api import ChessModelAPI
 from config import Config
 
 
 class ChessModel(object):
-    def __init__(self, config: Config):
+    """
+    This class holds the keras model used for the chess AI
+
+    :ivar config:
+        Config object used for creating and saving the keras model
+    :ivar model:
+        Fully build keras model
+    :ivar api:
+        Handle to the API for running the inference
+    """
+
+    def __init__(self, config: Config) -> None:
         self.config = config
         self.model = self.build()
         self.api = None
 
-    def reset(self):
+    def reset(self) -> None:
+        """
+        Reset the model entirely,
+        closing the pipes and clearing the tensorflow session
+        """
         if self.api is not None:
             for pipe in self.api.pipes:
                 pipe.close()
@@ -24,16 +41,29 @@ class ChessModel(object):
             self.api = None
         clear_session()
 
-    # Creates a list of pipes on which
-    # the game state observation will be listened.
-    def get_pipes(self, num=1):
+    def get_pipes(self, num=1) -> List[Pipe]:
+        """
+        Creates a list of pipes on which
+        the game state observation will be listened.
+
+        :param num:
+            The number of pipes that will be created
+
+        :return:
+            A list of newly created pipes
+        """
         if self.api is None:
             self.api = ChessModelAPI(self)
             self.api.start()
         return [self.api.create_pipe() for _ in range(num)]
 
-    # Builds the full keras model
-    def build(self):
+    def build(self) -> Model:
+        """
+        Builds the full keras model
+
+        :return:
+            full keras model
+        """
         _mc = self.config.model
 
         # Network Input
@@ -69,7 +99,17 @@ class ChessModel(object):
 
         return Model(in_x, [policy_out, value_out], name="chess_model")
 
-    def _build_residual_block(self, x, i):
+    def _build_residual_block(self, x: Layer, i: int) -> Layer:
+        """
+        Create a residual network on the model
+
+        :param x:
+            The layer that will be used on
+        :param i:
+            The index of the residual network
+        :return:
+            Layer with a new residual network on top
+        """
         _mc = self.config.model
         in_x = x
         res_name = f"residual_{i}"
@@ -86,19 +126,37 @@ class ChessModel(object):
         x = Activation("relu", name=f"{res_name}_relu2")(x)
         return x
 
-    # Get all the saved weights and sort it
-    def get_weights_path(self):
+    def get_weights_path(self) -> List[Path]:
+        """
+        Get all the saved weights and sort it
+
+        :return:
+            Sorted weights path
+        """
         path = Path(self.config.model_path)
         weights_path = list(sorted(path.glob("model_*.h5")))
         return weights_path
 
-    # Load the model weight from path given
-    def load_path(self, path: Path):
+    def load_path(self, path: Path) -> None:
+        """
+        Load the model weight from a given path
+
+        :param path:
+            Path of the model
+        :return:
+            Model with the weights loaded from the path
+        """
         assert path.exists(), "Invalid model!"
         print(f"Loading weights from {path}")
         self.model.load_weights(str(path))
 
-    def load_best(self):
+    def load_best(self) -> None:
+        """
+        Load the best model weight
+
+        :return:
+            Model with the weights loaded from the path
+        """
         path = Path(self.config.model_path) / "best_model"
         best_model_path = path / "model.h5"
         if path.exists():
@@ -121,15 +179,26 @@ class ChessModel(object):
             shutil.copy(latest_weight, best_model_path)
         self.model.load_weights(str(best_model_path))
 
-    # Load the selected model weight
-    def load_n(self, n: int):
+    def load_n(self, n: int) -> None:
+        """
+            Load the model weight from the selected index
+        :param n:
+            The model index
+        :return:
+            Model with the weights loaded from the path
+        """
         path = Path(self.config.model_path) / f"model_{n:05}.h5"
         assert path.exists(), "Invalid model!"
         print(f"Loading weights from {path}")
         self.model.load_weights(str(path))
 
-    # Load the latest model weight
-    def load_latest(self):
+    def load_latest(self) -> None:
+        """
+        Load the latest model weight
+
+        :return:
+            Model with the weights loaded from the path
+        """
         path = Path(self.config.model_path)
         if path.exists():
             weights_path = list(path.glob("model_*.h5"))
@@ -146,7 +215,10 @@ class ChessModel(object):
             self.save()
 
     # Save the latest model weight
-    def save(self):
+    def save(self) -> None:
+        """
+        Save the latest model weight
+        """
         path = Path(self.config.model_path)
         weights_path = list(path.glob("model_*.h5"))
         if len(weights_path) != 0:

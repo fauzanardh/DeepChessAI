@@ -1,6 +1,8 @@
+from multiprocessing import Pipe
 from threading import Lock
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from typing import Union
 
 import chess
 import numpy as np
@@ -9,32 +11,71 @@ from config import Config
 from env.chess_env import ChessEnv, Winner
 
 
-# This class holds the stats needed for AlphaZero Monte Carlo Tree Search (MCTS)
-# for a specific action taken from a specific state
 class ActionStats(object):
-    # n: number of visits to this action by the algorithm
-    # w: every time a child of this action is visited by the algorithm,
-    #    this accumulates the value of that child. This is modified
-    #    by a virtual loss which encourages threads to explore different nodes.
-    # q: mean action value
-    # p: prior probability of taking this action, given by the policy network output
-    def __init__(self):
+    """
+    This class holds the stats needed for AlphaZero Monte Carlo Tree Search (MCTS)
+    for a specific action taken from a specific state
+
+    :ivar n:
+        Number of visits to this action by the algorithm
+    :ivar w:
+        Every time a child of this action is visited by the algorithm,
+        this accumulates the value of that child. This is modified
+        by a virtual loss which encourages threads to explore different nodes.
+    :ivar q:
+        Mean action value
+    :ivar p:
+        Prior probability of taking this action, given by the policy network output
+    """
+
+    def __init__(self) -> None:
         self.n = 0
-        self.w = 0
-        self.q = 0
-        self.p = 0
+        self.w = 0.0
+        self.q = 0.0
+        self.p = 0.0
 
 
-# This class holds the information
-# to be used by the AlphaZero MCTS algorithm
 class VisitStats(object):
-    def __init__(self):
+    """
+    This class holds the information to be used by the AlphaZero MCTS algorithm
+
+    :ivar a:
+        Holds the ActionStats instance
+    :ivar sum_n:
+        The sum of n inside the ActionStats dict
+    """
+
+    def __init__(self) -> None:
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
 
 
 class ChessPlayer(object):
-    def __init__(self, config: Config, pipes=None, dummy=False):
+    """
+    Used to play the actual game of chess,
+    choosing moves based on the policy and value network
+
+    :ivar moves:
+        Stores the info on the moves that have been performed during the game
+    :ivar tree:
+        Holds all of the visited game states and actions
+    :ivar config:
+        Stores the whole config for how to run
+    :ivar n_labels:
+        The number of possible move labels (a1b1, a1c1, ...)
+    :ivar labels:
+        All possible moves labels
+    :ivar move_lookup:
+        Lookup table for changing label to the index of that label in self.labels
+    :ivar pipe_pool:
+        The pipes to send the observation data of the game to the API
+        and to get back the value and policy predicion from the network
+    :ivar node_lock:
+        A lookup table for changing the FEN game state to a Lock,
+        used for indicating whether that state is currently being explored by another thread
+    """
+
+    def __init__(self, config: Config, pipes: Pipe = None, dummy: bool = False) -> None:
         self.moves = []
         self.tree = defaultdict(VisitStats)
         self.config = config
@@ -46,13 +87,24 @@ class ChessPlayer(object):
         self.pipe_pool = pipes
         self.node_lock = defaultdict(Lock)
 
-    # Reset the tree to begin a exploration
-    def reset(self):
+    def reset(self) -> None:
+        """
+        Reset the tree to begin a exploration
+        """
         self.tree = defaultdict(VisitStats)
 
-    # Figure out what is the best next move
-    # within the specified environment
-    def action(self, env: ChessEnv, can_stop=True):
+    def action(self, env: ChessEnv, can_stop: bool = True) -> Union[str, None]:
+        """
+        Used to figure out the next best move
+        within the specified environment
+
+        :param env:
+            Environment in which the AI need to figure out the action from
+        :param can_stop:
+            Whether the AI is allowed to take no action (returns None)
+        :return:
+            Returns a string indicating the action to take in uci format
+        """
         self.reset()
 
         root_value, naked_value = self.search_moves(env)
@@ -67,16 +119,37 @@ class ChessPlayer(object):
             self.moves.append([env.observation, list(policy)])
             return self.config.labels[cur_action]
 
-    def sl_action(self, observation, action, weight=1):
+    def sl_action(self, observation: str, action: str, weight: float = 1) -> str:
+        """
+        Logs the action in self.moves.
+        Used for generating game data from pgn file
+
+        :param observation:
+            Environment to use
+        :param action:
+            UCI format action to take
+        :param weight:
+            Weight to assign the taken action
+        :return:
+            The action, unmodified
+        """
         policy = np.zeros(self.n_labels)
         k = self.move_lookup[chess.Move.from_uci(action)]
         policy[k] = weight
         self.moves.append([observation, list(policy)])
         return action
 
-    # Looks at all the possible moves using the AlphaZero MCTS algorithm
-    # find the highest move value possible
-    def search_moves(self, env: ChessEnv):
+    def search_moves(self, env: ChessEnv) -> (float, float):
+        """
+        Looks at all the possible moves using the AlphaZero MCTS algorithm
+        and find the highest move value possible
+
+        :param env:
+            Environment to search the moves from
+        :return:
+            The maximum value of all values predicted by each thread,
+            and the first value that was predicted
+        """
         futures = []
         with ThreadPoolExecutor(max_workers=self.config.play.search_threads) as executor:
             for _ in range(self.config.play.simulation_num_per_move):
@@ -85,9 +158,18 @@ class ChessPlayer(object):
         values = [f.result() for f in futures]
         return np.max(values), values[0]
 
-    # Search for possible moves, adds them to a tree search,
-    # and eventually returns the best move
-    def search_my_move(self, env: ChessEnv, is_root_node=False):
+    def search_my_move(self, env: ChessEnv, is_root_node: bool = False) -> float:
+        """
+        Search for possible moves, add them to a tree search,
+        and eventually returns the best move
+
+        :param env:
+            Environment to search the moves from
+        :param is_root_node:
+            Whether this is the root node of the search or not.
+        :return:
+            Value of the move calculated by the AlphaZero MCTS
+        """
         if env.done:
             if env.winner == Winner.draw:
                 return 0
@@ -125,29 +207,48 @@ class ChessPlayer(object):
 
         return leaf_v
 
-    # Gets a prediction for the policy
-    # and value of the state within the given env
     def expand_and_evaluate(self, env: ChessEnv):
+        """
+        Expand a new leaf, and gets a prediction from policy and value network
+
+        :param env:
+            Environment to search the moves from
+        :return:
+            The policy and value predictions for this state
+        """
         state_planes = env.canonical_input_planes()
         leaf_p, leaf_v = self.predict(state_planes)
         if not env.white_to_move:
             leaf_p = Config.flip_policy(leaf_p)
         return leaf_p, leaf_v
 
-    # Gets a prediction from the policy and value network
-    def predict(self, state_planes):
+    def predict(self, state_planes) -> ():
+        """
+        Gets a prediction from the policy and value network,
+        by sending it through the pipe to the prediction worker thread on another process
+
+        :param state_planes:
+            The observation state represented as planes
+        :return:
+            The policy and value predictions for the states
+        """
         pipe = self.pipe_pool.pop()
         pipe.send(state_planes)
         policy, value = pipe.recv()
         self.pipe_pool.append(pipe)
         return policy, value
-        # data = np.asarray([state_planes], dtype=np.float32)
-        # policy, value = self.agent.model.predict_on_batch(data)
-        # return policy[0], float(value[0])
 
-    # Picks the next action to explore using the AlphaZero MCTS algorithm
-    # The action are based on the action which maximize the maximum action value
-    def select_action_q_and_u(self, env: ChessEnv, is_root_node):
+    def select_action_q_and_u(self, env: ChessEnv, is_root_node: bool) -> chess.Move:
+        """
+        Picks the next action to explore using the AlphaZero MCTS Algorithm
+
+        :param env:
+            Environment to search the moves from
+        :param is_root_node:
+            Whether this is the root node of the MCTS search
+        :return:
+            The move to explore
+        """
         state = state_key(env)
         cur_visit_stats = self.tree[state]
 
@@ -187,8 +288,17 @@ class ChessPlayer(object):
 
         return best_a
 
-    # Applies a random fluctuation to probability of choosing various actions
-    def apply_temperature(self, policy, turn):
+    def apply_temperature(self, policy, turn: int):
+        """
+        Applies a random fluctuation to the probability of choosing various actions
+
+        :param policy:
+            The list of probabilities of taking each action
+        :param turn:
+            Number of turns that have occured in the game so far
+        :return:
+            The policy with randomly perturbed based on the temperature
+        """
         tau = np.power(self.config.play.tau_decay_rate, turn + 1)
         if tau < 0.1:
             tau = 0
@@ -202,8 +312,15 @@ class ChessPlayer(object):
             ret /= np.sum(ret)
             return ret
 
-    # calc π(a|s0)
     def calc_policy(self, env: ChessEnv):
+        """
+        calc π(a|s0)
+
+        :param env:
+            Environment to search the moves from
+        :return:
+            A list of probabilities of taking each action, calculated based on visit counts
+        """
         state = state_key(env)
         cur_visit_stats = self.tree[state]
         policy = np.zeros(self.n_labels)
@@ -213,13 +330,23 @@ class ChessPlayer(object):
         policy /= np.sum(policy)
         return policy
 
-    # When game is done, updates the value of
-    # all past moves based on the result
-    def finish_game(self, z):
+    def finish_game(self, z) -> None:
+        """
+        When game is finished, updates all values of the past moves based on the result
+
+        :param z:
+            1 == win, -1 == lose, 0 == draw
+        """
         for move in self.moves:
             move += [z]
 
 
-def state_key(env: ChessEnv):
+def state_key(env: ChessEnv) -> str:
+    """
+    :param env:
+        Environment to decode
+    :return:
+        A string representation of the game state
+    """
     fen = env.observation.rsplit(' ', 1)
     return fen[0]

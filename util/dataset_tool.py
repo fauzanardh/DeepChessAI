@@ -1,4 +1,6 @@
 from pathlib import Path
+from threading import Lock
+from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -9,11 +11,31 @@ from env.chess_env import ChessEnv, Winner, canon_input_planes, is_white_turn, e
 
 
 def _float_feature(value):
+    """
+    Convert the float value to Tensorflow Feature
+
+    :param value:
+        The float value to convert
+    :return:
+        Converted float value
+    """
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 
 class TFRecordExporter(object):
-    def __init__(self, dataset_name, config: Config):
+    """
+    Used to export PGNs to TFRecords
+
+    :ivar config:
+        Config to use
+    :ivar dataset_name:
+        Dataset name to use
+    :ivar tfr_dir:
+        Path to the TFRs directory
+    :ivar tfr_writer:
+        TFRecordWritter for that file
+    """
+    def __init__(self, dataset_name, config: Config) -> None:
         self.config = config
         self.dataset_name = dataset_name
         self.tfr_dir = Path(self.config.tfr_path)
@@ -25,10 +47,21 @@ class TFRecordExporter(object):
         self.tfr_writer = tf.io.TFRecordWriter(str(tfr_file), tfr_opt)
         self.game_idx = 0
 
-    def close(self):
+    def close(self) -> None:
+        """
+        Close the TFRecordWriter
+        """
         self.tfr_writer.close()
 
-    def add_from_buffer(self, data, lock=None):
+    def add_from_buffer(self, data, lock: Lock = None) -> None:
+        """
+        Add the game data to the TFRecord
+
+        :param data:
+            The game data
+        :param lock:
+            File threading Lock
+        """
         _data = convert_data(data)
         state = _data[0].reshape(-1)
         policy = _data[1].reshape(-1)
@@ -48,7 +81,14 @@ class TFRecordExporter(object):
         else:
             self.tfr_writer.write(ex.SerializeToString())
 
-    def add_data(self, game):
+    def add_data(self, game) -> None:
+        """
+        Get data from buffer and Add it to the TFRecord
+
+        :param game:
+             Game data from python-chess
+        :return:
+        """
         self.game_idx += 1
         try:
             env, data = get_buffer(self.config, game)
@@ -66,12 +106,33 @@ class TFRecordExporter(object):
         )
 
 
-def clip_elo_policy(config, elo):
+def clip_elo_policy(config: Config, elo: int):
+    """
+    Clip the ELO Rating
+
+    :param config:
+        Config to use
+    :param elo:
+        ELO to clip
+    :return:
+        Clipped ELO
+    """
     return min(1, max(0, elo - config.supervised_learning.min_elo_policy) /
                (config.supervised_learning.max_elo_policy - config.supervised_learning.min_elo_policy))
 
 
-def get_buffer(config: Config, game):
+def get_buffer(config: Config, game) -> (ChessEnv, List[(str, List[float])]):
+    """
+    Play one game and add the play data to the buffer
+
+    :param config:
+        Config to use
+    :param game:
+        Game data from python-chess
+    :return:
+        A tuple containing the final Environment state and
+        a list of moves data
+    """
     env = ChessEnv().reset()
     white = ChessPlayer(config, dummy=True)
     black = ChessPlayer(config, dummy=True)
@@ -119,6 +180,13 @@ def get_buffer(config: Config, game):
 
 
 def convert_data(data):
+    """
+    Convert the data to TFRecord data structure
+    :param data:
+        Data to convert
+    :return:
+        Converted data
+    """
     state_list = []
     policy_list = []
     value_list = []

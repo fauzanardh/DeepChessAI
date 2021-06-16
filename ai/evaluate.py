@@ -1,9 +1,9 @@
 import copy
 import shutil
-from collections import deque
-from multiprocessing import Manager
+from multiprocessing import Manager, Pipe
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+from typing import List
 
 from agent.model import ChessModel
 from agent.player import ChessPlayer
@@ -12,40 +12,70 @@ from env.chess_env import ChessEnv, Winner
 
 
 def start(config: Config):
-    return Optimizer(config).start()
+    """
+    Helper method to start the evaluator
+
+    :param config:
+        Config to use
+    """
+    return Evaluator(config).start()
 
 
-class Optimizer(object):
-    def __init__(self, config: Config):
+class Evaluator(object):
+    """
+    Class which evaluates the trained models
+
+    :ivar config:
+        Config to use
+    :ivar manager:
+        Multiprocessing manager for managing the pipes
+    """
+    def __init__(self, config: Config) -> None:
         self.config = config
         self.init_eval_config()
-        self.dataset = deque(), deque(), deque()
-        self.filenames = None
         self.manager = Manager()
-        self.cur_model = None
-        self.cur_pipes = []
-        self.new_model = None
-        self.new_pipes = []
-        self.executor = ProcessPoolExecutor(max_workers=self.config.evaluate.max_processes)
 
-    def init_eval_config(self):
+    def init_eval_config(self) -> None:
+        """
+        Overwrite the play config with the evaluate config
+        """
         self.config.play.c_puct = self.config.evaluate.c_puct
         self.config.play.game_num = self.config.evaluate.game_num
         self.config.play.noise_eps = self.config.evaluate.noise_eps
         self.config.play.simulation_num_per_move = self.config.evaluate.simulation_num_per_move
         self.config.play.tau_decay_rate = self.config.evaluate.tau_decay_rate
 
-    def load_best(self, config=None):
+    def load_best(self, config: Config = None) -> ChessModel:
+        """
+        Load the best weight
+
+        :param config:
+            Config to use
+        :return:
+            Model with the best weight loaded
+        """
         agent = ChessModel(self.config if config is None else config)
         agent.load_best()
         return agent
 
-    def load_latest(self, config=None):
+    def load_latest(self, config: Config = None) -> ChessModel:
+        """
+        Load the latest weight
+
+        :param config:
+            Config to use
+        :return:
+            Model with the latest weight loaded
+        """
         agent = ChessModel(self.config if config is None else config)
         agent.load_latest()
         return agent
 
-    def start(self):
+    def start(self) -> None:
+        """
+        Start evaluation, and save the latest model
+        if the model is better than the best model
+        """
         config = copy.deepcopy(self.config)
         config.play.c_puct = self.config.evaluate.c_puct
         config.play.game_num = self.config.evaluate.game_num
@@ -72,7 +102,17 @@ class Optimizer(object):
         else:
             print("Latest model is worse, continuing")
 
-    def evaluate_model(self, best_pipes, latest_pipes):
+    def evaluate_model(self, best_pipes: List[Pipe], latest_pipes: List[Pipe]) -> bool:
+        """
+        Evaluate the model by playing a bunch of games against the best model
+
+        :param best_pipes:
+            A list of pipes for the best model to use
+        :param latest_pipes:
+            A list of pipes for the latest model to use
+        :return:
+            True if the latest model is better, False otherwise
+        """
         futures = []
         with ProcessPoolExecutor(max_workers=self.config.evaluate.max_processes) as executor:
             for game_idx in range(self.config.evaluate.game_num):
@@ -108,7 +148,23 @@ class Optimizer(object):
             return win_rate >= self.config.evaluate.replace_rate
 
 
-def play_game(config: Config, cur, new, cur_white: bool):
+def play_game(config: Config, cur: List[Pipe], new: List[Pipe], cur_white: bool) -> (float, ChessEnv, bool):
+    """
+    Plays a game against the latest model
+
+    :param config:
+        Config to use
+    :param cur:
+        A list of pipes for the best model
+    :param new:
+        A list of pipes for the latest model
+    :param cur_white:
+        Whether the best model should play white
+    :return:
+        The score of the latest model,
+        The Environment of the game, and
+        Whether the best model should play white
+    """
     cur_pipe = cur.pop()
     new_pipe = new.pop()
     env = ChessEnv().reset()
